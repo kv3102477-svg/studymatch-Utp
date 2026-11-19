@@ -3,17 +3,25 @@ package com.studymatch.service;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studymatch.dao.EstudianteDAO;
 import com.studymatch.dao.TokenDAO;
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
+import java.time.Duration;
+import java.util.Base64;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.mail.MailPreparationException;
-import org.springframework.mail.javamail.JavaMailSenderImpl;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.mail.MailSendException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,17 +36,8 @@ public class RecoveryService {
     private final EstudianteDAO estudianteDAO;
     private final TokenDAO tokenDAO;
 
-    @Value("${MAIL_HOST:}")
-    private String host;
-
-    @Value("${MAIL_PORT:587}")
-    private int port;
-
-    @Value("${MAIL_USER:}")
-    private String user;
-
-    @Value("${MAIL_PASSWORD:}")
-    private String password;
+    @Value("${BREVO_API_KEY:}")
+    private String brevoApiKey;
 
     @Value("${MAIL_FROM:}")
     private String from;
@@ -47,6 +46,10 @@ public class RecoveryService {
     private String appUrl;
 
     private final TemplateEngine templates;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final HttpClient httpClient = HttpClient.newBuilder()
+        .connectTimeout(Duration.ofSeconds(10))
+        .build();
 
     public RecoveryService(
         EstudianteDAO estudianteDAO,
@@ -71,7 +74,7 @@ public class RecoveryService {
     /** Crea un enlace temporal para recuperar la contraseña de una cuenta existente. */
     @Transactional
     public void request(String email) {
-        if (host.isBlank() || from.isBlank()) throw new ResponseStatusException(
+        if (brevoApiKey.isBlank() || from.isBlank()) throw new ResponseStatusException(
             SERVICE_UNAVAILABLE,
             "La recuperación de contraseña todavía no está habilitada."
         );
@@ -133,41 +136,58 @@ public class RecoveryService {
         context.setVariable("code", code);
         context.setVariable("actionUrl", actionUrl);
         context.setVariable("minutes", minutes);
-        return templates.process("email", context);
+        String html = templates.process("email", context);
+        return embedLogo(html);
+    }
+
+    private String embedLogo(String html) {
+        try {
+            var resource = new ClassPathResource("static/images/studymatch-logo.png");
+            if (resource.exists()) {
+                String base64 = Base64.getEncoder().encodeToString(resource.getContentAsByteArray());
+                return html.replace(
+                    "cid:studymatch-logo",
+                    "data:image/png;base64," + base64
+                );
+            }
+        } catch (IOException ignored) {
+        }
+        return html;
     }
 
     private void sendMail(String email, String subject, String body, String html) {
-        if (host.isBlank() || from.isBlank()) throw new ResponseStatusException(
+        if (brevoApiKey.isBlank() || from.isBlank()) throw new ResponseStatusException(
             SERVICE_UNAVAILABLE,
             "Falta configurar el envío de correo. Intenta de nuevo cuando el administrador lo habilite."
         );
-        var sender = new JavaMailSenderImpl();
-        sender.setHost(host);
-        sender.setPort(port);
-        sender.setUsername(user);
-        sender.setPassword(password);
-        var settings = sender.getJavaMailProperties();
-        settings.setProperty("mail.smtp.auth", String.valueOf(!user.isBlank()));
-        settings.setProperty("mail.smtp.starttls.enable", "true");
-        settings.setProperty("mail.smtp.starttls.required", "true");
-        settings.setProperty("mail.smtp.connectiontimeout", "10000");
-        settings.setProperty("mail.smtp.timeout", "10000");
-        settings.setProperty("mail.smtp.writetimeout", "10000");
         try {
-            var message = sender.createMimeMessage();
-            var mail = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
-            mail.setFrom(from, "StudyMatch");
-            mail.setTo(email);
-            mail.setSubject(subject);
-            mail.setText(body, html);
-            mail.addInline(
-                "studymatch-logo",
-                new ClassPathResource("static/images/studymatch-logo.png"),
-                "image/png"
+            var payload = Map.of(
+                "sender", Map.of("name", "StudyMatch", "email", from.trim()),
+                "to", List.of(Map.of("email", email.trim())),
+                "subject", subject,
+                "htmlContent", html,
+                "textContent", body
             );
-            sender.send(message);
-        } catch (jakarta.mail.MessagingException | java.io.UnsupportedEncodingException ex) {
-            throw new MailPreparationException("No se pudo preparar el correo de StudyMatch.", ex);
+            String json = objectMapper.writeValueAsString(payload);
+            var request = HttpRequest.newBuilder()
+                .uri(URI.create("https://api.brevo.com/v3/smtp/email"))
+                .timeout(Duration.ofSeconds(15))
+                .header("accept", "application/json")
+                .header("content-type", "application/json")
+                .header("api-key", brevoApiKey.trim())
+                .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
+                .build();
+            var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new MailSendException(
+                    "Error al enviar correo con Brevo (HTTP " + response.statusCode() + "): " + response.body()
+                );
+            }
+        } catch (IOException e) {
+            throw new MailSendException("No se pudo conectar con la API de Brevo.", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new MailSendException("Envío de correo interrumpido.", e);
         }
     }
 
@@ -193,7 +213,7 @@ public class RecoveryService {
     }
 
     /** Transporte de avisos del sistema. Los tests sustituyen esta frontera con un doble. */
-    public void sendAviso(String correo,String titulo,String mensaje){
-        sendMail(correo,titulo,mensaje,renderMail(titulo,mensaje,null,null,0));
+    public void sendAviso(String correo, String titulo, String mensaje) {
+        sendMail(correo, titulo, mensaje, renderMail(titulo, mensaje, null, null, 0));
     }
 }
