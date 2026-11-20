@@ -74,6 +74,12 @@ public class C_Documento {
         return files.photo(id(s));
     }
 
+    @DeleteMapping("/perfil/foto")
+    public Object deletePhoto(HttpSession s) {
+        files.deletePhoto(id(s));
+        return Map.of("mensaje", "Foto eliminada.");
+    }
+    
     @PostMapping("/conversaciones/{conversation}/archivos")
     public Object uploadChat(
         HttpSession s,

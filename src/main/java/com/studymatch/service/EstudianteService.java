@@ -4,18 +4,20 @@ import static com.studymatch.service.Validaciones.id;
 import static com.studymatch.service.Validaciones.required;
 import static com.studymatch.service.Validaciones.text;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import com.studymatch.dao.CatalogoDAO;
 import com.studymatch.dao.DisponibilidadDAO;
 import com.studymatch.dao.EstudianteDAO;
 import com.studymatch.dao.MateriaDAO;
-import com.studymatch.dao.SuscripcionDAO;
 import com.studymatch.dao.SesionDAO;
+import com.studymatch.dao.SuscripcionDAO;
 import com.studymatch.model.Registro;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +27,11 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class EstudianteService {
 
+    private static final int MAX_LOGIN_ATTEMPTS = 3;
+    private static final long LOCK_DURATION_MS = 5 * 60 * 1000L;
+
+    private record LoginAttemptState(int failures, long lockedUntil) {}
+
     private final CatalogoDAO catalogoDAO;
     private final DisponibilidadDAO disponibilidadDAO;
     private final EstudianteDAO estudianteDAO;
@@ -32,6 +39,7 @@ public class EstudianteService {
     private final SuscripcionDAO suscripcionDAO;
     private final SesionDAO sesionDAO;
     private final BCryptPasswordEncoder passwords = new BCryptPasswordEncoder(12);
+    private final ConcurrentHashMap<String, LoginAttemptState> loginAttempts = new ConcurrentHashMap<>();
 
     public EstudianteService(
         CatalogoDAO catalogoDAO,
@@ -68,7 +76,6 @@ public class EstudianteService {
         if (
             catalog.equals("ciclo") && !name.matches("Ciclo ([1-9]|10)")
         ) throw new ResponseStatusException(BAD_REQUEST, "Selecciona un ciclo del 1 al 10.");
-        // El nombre funciona como clave de catálogo; la FK propaga sus cambios al perfil.
         var rows = catalogoDAO.buscarOpcion(catalog, name);
         if (
             rows.isEmpty() ||
@@ -102,16 +109,52 @@ public class EstudianteService {
         return estudianteDAO.perfil(student);
     }
 
-    /** Comprueba el correo y la contraseña, sin devolver el hash guardado. */
+    /** Comprueba el correo y la contraseña, bloqueando 5 minutos tras 3 intentos fallidos. */
     public Map<String, Object> login(Map<String, String> input) {
         String email = text(input, "correo", 120).toLowerCase(Locale.ROOT);
+        long now = System.currentTimeMillis();
+
+        LoginAttemptState state = loginAttempts.get(email);
+        if (state != null && state.lockedUntil() > now) {
+            long remainingSeconds = (state.lockedUntil() - now + 999) / 1000;
+            long mins = remainingSeconds / 60;
+            long secs = remainingSeconds % 60;
+            String waitMsg = mins > 0
+                ? String.format(Locale.ROOT, "%d min %02d seg", mins, secs)
+                : secs + " segundos";
+            throw new ResponseStatusException(
+                TOO_MANY_REQUESTS,
+                "Demasiados intentos fallidos. Intenta de nuevo en " + waitMsg + "."
+            );
+        }
+
         String raw = input.get("contrasena");
         var rows = estudianteDAO.credenciales(email);
         if (
             raw == null ||
             rows.isEmpty() ||
             !passwords.matches(raw, String.valueOf(rows.get(0).get("contrasena_hash")))
-        ) throw new ResponseStatusException(UNAUTHORIZED, "Correo o contraseña incorrectos.");
+        ) {
+            int currentFailures = (state != null && state.lockedUntil() <= now)
+                ? state.failures() + 1
+                : 1;
+            if (currentFailures >= MAX_LOGIN_ATTEMPTS) {
+                loginAttempts.put(email, new LoginAttemptState(currentFailures, now + LOCK_DURATION_MS));
+                throw new ResponseStatusException(
+                    TOO_MANY_REQUESTS,
+                    "Has superado los 3 intentos fallidos. Tu inicio de sesión está bloqueado por 5 minutos."
+                );
+            }
+            loginAttempts.put(email, new LoginAttemptState(currentFailures, 0L));
+            int remaining = MAX_LOGIN_ATTEMPTS - currentFailures;
+            throw new ResponseStatusException(
+                UNAUTHORIZED,
+                "Correo o contraseña incorrectos. Te quedan " + remaining +
+                    (remaining == 1 ? " intento." : " intentos.")
+            );
+        }
+
+        loginAttempts.remove(email);
         return estudianteDAO.perfil(((Number) id(rows.get(0), "id")).longValue());
     }
 
@@ -156,8 +199,26 @@ public class EstudianteService {
         estudianteDAO.cambiarClave((String) passwords.encode(input.get("nueva")), student);
     }
 
+    /** Valida la contraseña actual antes de desactivar la cuenta definitivamente. */
     @Transactional
-    public Object delete(long student) {
+    public Object delete(long student, String contrasenaActual) {
+        if (contrasenaActual == null || contrasenaActual.isBlank()) {
+            throw new ResponseStatusException(
+                BAD_REQUEST,
+                "Ingresa tu contraseña actual para confirmar la eliminación de tu cuenta."
+            );
+        }
+        var stored = estudianteDAO.claveGuardada(student);
+        if (
+            stored == null ||
+            !passwords.matches(contrasenaActual, String.valueOf(stored.get("contrasena_hash")))
+        ) {
+            throw new ResponseStatusException(
+                UNAUTHORIZED,
+                "La contraseña ingresada no es correcta."
+            );
+        }
+
         boolean pendientes = sesionDAO.listarDelEstudiante(student).stream()
             .anyMatch(sesion -> "CONFIRMADA".equals(sesion.get("estado"))
                 && sesion.get("fecha_hora") instanceof java.sql.Timestamp fecha

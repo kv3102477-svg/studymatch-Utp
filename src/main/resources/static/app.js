@@ -50,6 +50,87 @@ let savedSchedule = [],
     poll = null,
     statusTimer = null;
 
+function formatExpirationDate(dateObj) {
+    if (!dateObj || Number.isNaN(dateObj.getTime())) return "Sin vencimiento";
+    return dateObj.toLocaleDateString("es-PE", {
+        timeZone: "America/Bogota",
+        dateStyle: "long",
+    });
+}
+
+function addMonthsSafe(dateObj, months) {
+    const d = new Date(dateObj.getTime());
+    d.setMonth(d.getMonth() + months);
+    return d;
+}
+
+function addWeeksSafe(dateObj, weeks) {
+    const d = new Date(dateObj.getTime());
+    d.setDate(d.getDate() + weeks * 7);
+    return d;
+}
+
+// Último lunes de marzo del año indicado
+function utpMarchCycleStart(year) {
+    const d = new Date(year, 2, 31, 23, 59, 59);
+    const offsetToMonday = (d.getDay() + 6) % 7;
+    d.setDate(d.getDate() - offsetToMonday);
+    return d;
+}
+
+// Segundo lunes de agosto del año indicado
+function utpAugustCycleStart(year) {
+    const firstAug = new Date(year, 7, 1, 23, 59, 59);
+    const daysToFirstMonday = (8 - firstAug.getDay()) % 7;
+    const secondMonday = 1 + daysToFirstMonday + 7;
+    return new Date(year, 7, secondMonday, 23, 59, 59);
+}
+
+// Cierre de 18 semanas según el ciclo UTP (marzo o agosto)
+function utpSemesterExpiration(fromDate = new Date()) {
+    const base = new Date(fromDate);
+    if (Number.isNaN(base.getTime())) return null;
+    const year = base.getFullYear();
+
+    const marchEnd = addWeeksSafe(utpMarchCycleStart(year), 18);
+    const augEnd = addWeeksSafe(utpAugustCycleStart(year), 18);
+
+    if (base <= marchEnd) return marchEnd;
+    if (base <= augEnd) return augEnd;
+    return addWeeksSafe(utpMarchCycleStart(year + 1), 18);
+}
+
+function parseServerDate(raw) {
+    if (!raw) return null;
+    const str = String(raw).trim();
+    const normalized = str.length === 10 ? `${str}T23:59:59-05:00` : str;
+    const d = new Date(normalized);
+    return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function computePlanExpiration(sub, user) {
+    const explicit = parseServerDate(sub?.fecha_vencimiento);
+    if (explicit) return explicit;
+
+    const baseDate =
+        parseServerDate(sub?.fecha_inicio) ||
+        parseServerDate(user?.creado_en) ||
+        parseServerDate(user?.fecha_registro) ||
+        new Date();
+
+    const isPaidActive = Boolean(sub && ["ACTIVO", "TRIAL"].includes(sub.estado_actual));
+    if (isPaidActive) {
+        const label = `${sub.periodo || ""} ${sub.plan || ""}`;
+        if (/semestr|ciclo/i.test(label)) {
+            return utpSemesterExpiration(baseDate);
+        }
+        return addMonthsSafe(baseDate, 1);
+    }
+
+    // Plan gratuito inicial: 2 meses gratis
+    return addMonthsSafe(baseDate, 2);
+}
+
 let catalogRequest = 0;
 async function loadCatalogs() {
     const request = ++catalogRequest;
@@ -275,6 +356,7 @@ function profile() {
             e.replaceChildren(image);
         }
     }
+    show("btn-remove-photo", Boolean(u.foto_url), "inline-flex");
     $("perfil-nombre").value = u.nombre || "";
     $("perfil-bio").value = u.bio || "";
     for (const [id, value] of [
@@ -388,6 +470,17 @@ async function signedIn(result) {
     show("app-container", true, "flex");
     navigate("inicio-section", false);
     await Promise.all([refresh(), loadSearch().catch((e) => notify(e.message, true))]);
+
+    const hasPaidSub = subscriptions.some((s) => s.estado_actual === "ACTIVO");
+    if (!hasPaidSub) {
+        const venceFree = $("mi-plan-fecha-vence")?.textContent;
+        notify(
+            venceFree && venceFree !== "Sin vencimiento"
+                ? `Desde ahora cuentas con dos meses gratis (vigente hasta el ${venceFree}).`
+                : "Desde ahora cuentas con dos meses gratis.",
+        );
+    }
+
     clearInterval(poll);
     poll = setInterval(() => {
         if (!currentUser || document.hidden) return;
@@ -1091,47 +1184,85 @@ async function loadRanking() {
 async function loadSubscriptions() {
     [subscriptions, plans] = await Promise.all([api("/suscripciones"), api("/planes")]);
     const active = subscriptions.find((s) => ["ACTIVO", "TRIAL"].includes(s.estado_actual));
-    const latest = active || subscriptions[0];
-    const name = active?.plan || "Plan Gratuito",
-        state = active?.estado_actual || "GRATUITO";
+    const latest = active || subscriptions[0] || null;
+
+    const isPaidActive = Boolean(active && active.estado_actual === "ACTIVO");
+    const isTrialActive = Boolean(active && active.estado_actual === "TRIAL");
+
+    const name = isPaidActive
+        ? active.plan || "Plan Pro Ciclo"
+        : isTrialActive
+          ? active.plan || "Prueba Activa"
+          : "Plan Gratuito";
+    const state = isPaidActive ? "ACTIVO" : isTrialActive ? "TRIAL" : "GRATUITO";
+
     for (const id of ["mi-plan-card-titulo", "rf37-titulo-plan"]) setText(id, name);
     for (const id of ["rf34-top-text", "mi-plan-card-badge", "rf37-badge-activa"])
         setText(id, state);
-    setText("mi-plan-fecha-vence", latest?.fecha_vencimiento || "Sin vencimiento");
-    setText("rf37-fecha-vigencia", latest?.fecha_vencimiento || "Sin vencimiento");
-    setText(
-        "mi-plan-dias-subtext",
-        active
-            ? "Consulta la fecha de vencimiento de tu plan."
-            : "Puedes consultar los planes disponibles.",
-    );
-    setText("current-plan-match", active ? "Emparejamientos ilimitados" : "5 emparejamientos al mes");
-    setText("current-plan-filters", active ? "Filtros avanzados de búsqueda" : "Búsqueda básica por nombre y materia");
-    setText("current-plan-ranking", active ? "Acceso al ranking de mentores" : "Ranking disponible con Pro-Ciclo");
-    setText("current-plan-badge", active ? "Distintivo Pro en el perfil" : "Insignias por horas de mentoría");
-    const activePlan = plans.find((p) => p.id === active?.plan_id);
-    document
-        .querySelectorAll("[data-plan-benefits]")
-        .forEach(
-            (e) =>
-                (e.innerHTML = activePlan
-                    ? activePlan.beneficios
-                          .map((b) => `<li style="margin:8px 0;">${escapeHtml(b.texto)}</li>`)
-                          .join("")
-                    : "<li>Sin beneficios adicionales registrados.</li>"),
+
+    const venceDate = computePlanExpiration(active || latest, currentUser);
+    const textoVencimiento = formatExpirationDate(venceDate);
+
+    setText("mi-plan-fecha-vence", textoVencimiento);
+    setText("rf37-fecha-vigencia", textoVencimiento);
+
+    if (isPaidActive) {
+        setText(
+            "mi-plan-dias-subtext",
+            `Tu suscripción está activa. Disfrutarás de tu plan hasta el ${textoVencimiento}.`,
         );
-    show("sidebar-pro-badge", !!active, "inline-block");
+    } else if (isTrialActive) {
+        setText(
+            "mi-plan-dias-subtext",
+            `Tu periodo de prueba está activo hasta el ${textoVencimiento}.`,
+        );
+    } else {
+        setText(
+            "mi-plan-dias-subtext",
+            `Cuentas con 2 meses de prueba gratis. Tu plan gratuito vence el ${textoVencimiento}.`,
+        );
+    }
+
+    setText(
+        "current-plan-match",
+        isPaidActive ? "Emparejamientos ilimitados" : "Modelo Freemium · 2 meses de prueba gratis",
+    );
+    setText(
+        "current-plan-filters",
+        isPaidActive ? "Filtros avanzados de búsqueda" : "Búsqueda básica por nombre y materia",
+    );
+    setText(
+        "current-plan-ranking",
+        isPaidActive ? "Acceso al ranking de mentores" : "Ranking disponible con Plan Pro Ciclo",
+    );
+    setText(
+        "current-plan-badge",
+        isPaidActive
+            ? "Certificación de horas de mentoría universitaria e insignias"
+            : "Insignias por horas de mentoría",
+    );
+
+    const activePlan = plans.find((p) => p.id === active?.plan_id);
+    document.querySelectorAll("[data-plan-benefits]").forEach((e) => {
+        e.innerHTML = activePlan
+            ? activePlan.beneficios
+                  .map((b) => `<li style="margin:8px 0;">${escapeHtml(b.texto)}</li>`)
+                  .join("")
+            : isPaidActive
+              ? '<li style="margin:8px 0;">Emparejamientos ilimitados y certificación de horas de mentoría universitaria.</li>'
+              : '<li style="margin:8px 0;">2 meses de prueba gratis en modelo Freemium.</li>';
+    });
+
+    show("sidebar-pro-badge", Boolean(active), "inline-block");
     setText("sidebar-pro-badge", state);
-    const days = active?.fecha_vencimiento
-        ? Math.ceil(
-              (new Date(active.fecha_vencimiento + "T23:59:59-05:00") - new Date()) / 86400000,
-          )
-        : null;
+
+    const days = venceDate ? Math.ceil((venceDate.getTime() - Date.now()) / 86400000) : null;
     show("rf38-banner-amarillo-dashboard", days !== null && days >= 0 && days <= 7, "flex");
     if (days !== null) {
         setText("rf38-txt-dias-banner", days);
-        setText("rf38-txt-fecha-banner", active.fecha_vencimiento);
+        setText("rf38-txt-fecha-banner", textoVencimiento);
     }
+
     const payments = await api("/pagos");
     setText("rf37-contador-transacciones", payments.length + " transacciones");
     $("rf37-tbody-historial").innerHTML = payments.length
@@ -1149,20 +1280,23 @@ let paymentBusy = false;
 let lastDemoPayment = null;
 function updatePaymentMode() {
     const monthly = $("radio-modalidad-mensual")?.checked;
-    const plan = plans.find(p => Number(p.precio) > 0 &&
-        (monthly ? /mes/i.test(p.periodo) && !/seman/i.test(p.periodo) : /seman|ciclo/i.test(p.periodo)));
+    const plan = plans.find(
+        (p) =>
+            Number(p.precio) > 0 &&
+            (monthly ? /mes/i.test(p.periodo) : /semestr|ciclo|seman/i.test(p.periodo)),
+    );
     if (plan) selectedPlan = plan;
     if (!selectedPlan) return;
     const amount = `${selectedPlan.moneda} ${Number(selectedPlan.precio).toFixed(2)}`;
     setText("rf36-txt-monto-final", Number(selectedPlan.precio).toFixed(2));
     setText("rf36-btn-monto", amount);
-    setText("btn-confirmar-pago-pasarela", "Activar Pro · " + amount + "");
+    setText("btn-confirmar-pago-pasarela", "Activar Pro Ciclo · " + amount);
     for (const mode of ["mensual", "semestral"]) {
         const radio = $("radio-modalidad-" + mode);
         const label = radio?.closest("label");
         if (label) {
-            label.style.borderColor = radio.checked ? "#b60d30" : "#e2e8f0";
-            label.style.background = radio.checked ? "#fef2f2" : "white";
+            label.style.borderColor = radio?.checked ? "#b60d30" : "#e2e8f0";
+            label.style.background = radio?.checked ? "#fef2f2" : "white";
         }
     }
 }
@@ -1226,13 +1360,28 @@ async function paymentDemo(scenario = "APROBADO") {
             setText("rf36-exito-monto", `${result.plan.moneda} ${Number(result.plan.precio).toFixed(2)}`);
             show("modal-pago-exito", true, "flex");
             await loadSubscriptions();
+
+            const expServer = parseServerDate(result.fecha_vencimiento);
+            const fechaHasta = expServer
+                ? formatExpirationDate(expServer)
+                : $("mi-plan-fecha-vence")?.textContent;
+            notify(
+                fechaHasta && fechaHasta !== "Sin vencimiento"
+                    ? `Suscripción activada. Disfrutarás de tu plan hasta el ${fechaHasta}.`
+                    : "Plan Pro-Ciclo activado correctamente.",
+            );
         } else {
             paymentReference = crypto.randomUUID();
             setText("rf36-banner-error-title", result.estado === "TIMEOUT" ? "Tiempo de espera agotado" : "Pago rechazado");
             setText("rf36-banner-error-desc", result.mensaje);
             show("rf36-banner-error", true, "flex");
+            notify(
+                result.estado === "TIMEOUT"
+                    ? "Se agotó el tiempo de espera. Intenta nuevamente."
+                    : "Pago rechazado. Revisa los datos e intenta nuevamente.",
+                true,
+            );
         }
-        notify(result.estado === "APROBADO" ? "Plan Pro-Ciclo activado correctamente." : result.estado === "TIMEOUT" ? "Se agotó el tiempo de espera. Intenta nuevamente." : "Pago rechazado. Revisa los datos e intenta nuevamente.", result.estado !== "APROBADO");
     } finally {
         paymentBusy = false;
         $("btn-confirmar-pago-pasarela").disabled = false;
@@ -1329,6 +1478,46 @@ document.addEventListener("DOMContentLoaded", async () => {
     setupSubjectSearch();
     setupEnterActions();
     setupAppDialog();
+    // 1. Mostrar / ocultar contraseña (ojito)
+    document.querySelectorAll('input[type="password"]').forEach((input) => {
+        const btn = input.parentElement?.querySelector("button");
+        if (!btn) return;
+        btn.addEventListener("click", (e) => {
+            e.preventDefault();
+            const showPass = input.type === "password";
+            input.type = showPass ? "text" : "password";
+            const icon = btn.querySelector("i");
+            if (icon) {
+                icon.classList.toggle("fa-eye", !showPass);
+                icon.classList.toggle("fa-eye-slash", showPass);
+            }
+        });
+    });
+
+    // 2. Menú hamburguesa en móvil
+    $("btn-mobile-menu")?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        document.querySelector(".sidebar")?.classList.toggle("open");
+    });
+    document.querySelectorAll(".nav-item").forEach((item) => {
+        item.addEventListener("click", () => {
+            document.querySelector(".sidebar")?.classList.remove("open");
+        });
+    });
+    document.addEventListener("click", (e) => {
+        const sidebar = document.querySelector(".sidebar");
+        if (sidebar?.classList.contains("open") && !sidebar.contains(e.target) && e.target.id !== "btn-mobile-menu") {
+            sidebar.classList.remove("open");
+        }
+    });
+
+    // 3. Botón quitar foto de perfil
+    on("btn-remove-photo", async () => {
+        await api("/perfil/foto", "DELETE");
+        currentUser = await api("/auth/yo");
+        profile();
+        notify("Foto de perfil eliminada.");
+    });
     for (const [id, page] of [
         ["link-to-register", "register-section"],
         ["link-to-login", "login-section"],
@@ -1417,19 +1606,41 @@ document.addEventListener("DOMContentLoaded", async () => {
         notify("Perfil guardado en tu cuenta.");
     });
     on("btn-cancel-profile", profile);
-    on("btn-delete-account", async () => {
-        if (
-            await appDialog({
-                title: "Desactivar cuenta",
-                description: "Dejarás de aparecer en las búsquedas.",
-                confirm: "Desactivar cuenta",
-            })
-        ) {
-            await api("/cuenta", "DELETE");
-            loggedOut();
-            await token();
-            notify("Cuenta desactivada.");
+    $("btn-delete-account")?.addEventListener(
+        "click",
+        (e) => {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            const box = $("desactivar-cuenta-box");
+            if (!box) return;
+            const visible = box.style.display === "block";
+            box.style.display = visible ? "none" : "block";
+            if (!visible) {
+                $("desactivar-password").value = "";
+                $("desactivar-password").focus();
+            }
+        },
+        true,
+    );
+
+    on("btn-cancelar-desactivar-cuenta", () => {
+        $("desactivar-password").value = "";
+        show("desactivar-cuenta-box", false);
+    });
+
+    on("btn-confirmar-desactivar-cuenta", async () => {
+        const contrasena = $("desactivar-password").value;
+        if (!contrasena.trim()) {
+            notify("Ingresa tu contraseña actual para desactivar la cuenta.", true);
+            $("desactivar-password").focus();
+            return;
         }
+        await api("/cuenta", "DELETE", { contrasena });
+        $("desactivar-password").value = "";
+        show("desactivar-cuenta-box", false);
+        loggedOut();
+        await token();
+        notify("Cuenta desactivada.");
     });
     for (const [prefix, role] of [
         ["teach", "ENSENAR"],
@@ -1683,24 +1894,56 @@ document.addEventListener("DOMContentLoaded", async () => {
             "change",
         );
     }
-    for (const [id, target] of [
+ const planTabs = [
         ["tab-btn-mi-plan", "tab-content-mi-plan"],
         ["tab-btn-gestion-sub", "tab-content-gestion-sub"],
         ["tab-btn-comprobantes", "tab-content-comprobantes"],
-    ])
-        on(id, () => {
-            document
-                .querySelectorAll(".tab-plan-content")
-                .forEach((e) => (e.style.display = e.id === target ? "block" : "none"));
-            document
-                .querySelectorAll(".tab-btn-plan")
-                .forEach((e) => e.classList.toggle("active", e.id === id));
-        });
+    ];
+
+    function paintPlanTab(activeBtnId) {
+        for (const [btnId, contentId] of planTabs) {
+            const btn = $(btnId);
+            const content = $(contentId);
+            const isActive = btnId === activeBtnId;
+
+            if (content) {
+                content.style.display = isActive ? "block" : "none";
+            }
+            if (btn) {
+                btn.classList.toggle("active", isActive);
+                btn.setAttribute("aria-selected", String(isActive));
+                if (isActive) {
+                    btn.style.setProperty("color", "#b30832", "important");
+                    btn.style.setProperty("border-bottom", "2px solid #b30832", "important");
+                    btn.style.setProperty("font-weight", "600", "important");
+                } else {
+                    btn.style.removeProperty("color");
+                    btn.style.removeProperty("border-bottom");
+                    btn.style.removeProperty("font-weight");
+                }
+            }
+        }
+    }
+
+    for (const [btnId] of planTabs) {
+        const btn = $(btnId);
+        if (!btn) continue;
+        btn.addEventListener(
+            "click",
+            () => {
+                paintPlanTab(btnId);
+                setTimeout(() => paintPlanTab(btnId), 0);
+            },
+            true,
+        );
+    }
+
+    paintPlanTab("tab-btn-mi-plan");
     for (const id of ["btn-ir-mi-suscripcion", "btn-rf38-banner-renovar"])
         on(id, () => navigate("suscripcion-section"));
     on("btn-mi-plan-aprovechar", () => navigate("buscar-section"));
     on("btn-contratar-plan-oficial", () => {
-        const paid = plans.find((p) => Number(p.precio) > 0 && /seman|ciclo/i.test(p.periodo)) || plans.find((p) => Number(p.precio) > 0);
+        const paid = plans.find((p) => Number(p.precio) > 0 && /semestr|ciclo|seman/i.test(p.periodo)) || plans.find((p) => Number(p.precio) > 0);
         if (!paid) throw new Error("Todavía no hay planes disponibles.");
         openPlan(paid.id);
     });
@@ -1710,7 +1953,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (
             await appDialog({
                 title: "Cancelar suscripción",
-                description: "Volverás al Plan Gratuito: 5 emparejamientos al mes, búsqueda básica y sin acceso al ranking. Tu historial se conserva.",
+                description: "Volverás al Plan Gratuito (modelo Freemium). Tu historial se conserva.",
                 confirm: "Cancelar suscripción",
             })
         ) {

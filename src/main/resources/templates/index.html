@@ -61,19 +61,24 @@
                     </div>
                 </div>
                 <div class="auth-form-group">
-                    <label>Contraseña</label>
-                    <input
-                        type="password"
-                        id="login-password"
-                        class="auth-input"
-                        placeholder="********"
-                        minlength="8"
-                    />
-                    <div id="login-password-error" class="field-error-message">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                        <span>Por favor completa este campo.</span>
-                    </div>
-                </div>
+                  <label>Contraseña</label>
+                  <div class="password-input-wrapper">
+                      <input
+                          type="password"
+                          id="login-password"
+                          class="auth-input"
+                          placeholder="********"
+                          minlength="8"
+                      />
+                      <button type="button" class="toggle-password-btn" data-target="login-password" aria-label="Mostrar u ocultar contraseña">
+                          <i class="fa-regular fa-eye"></i>
+                      </button>
+                  </div>
+                  <div id="login-password-error" class="field-error-message">
+                      <i class="fa-solid fa-triangle-exclamation"></i>
+                      <span>Por favor completa este campo.</span>
+                  </div>
+              </div>
 
                 <button class="auth-btn" id="btn-login" disabled>Iniciar sesión</button>
 
@@ -145,19 +150,24 @@
                     </div>
                 </div>
                 <div class="auth-form-group">
-                    <label>Contraseña</label>
-                    <input
-                        type="password"
-                        id="reg-password"
-                        class="auth-input"
-                        placeholder="Mínimo 8 caracteres"
-                        minlength="8"
-                    />
-                    <div id="reg-password-error" class="field-error-message">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                        <span>La contraseña debe tener al menos 8 caracteres.</span>
-                    </div>
-                </div>
+                  <label>Contraseña</label>
+                  <div class="password-input-wrapper">
+                      <input
+                          type="password"
+                          id="reg-password"
+                          class="auth-input"
+                          placeholder="Mínimo 8 caracteres"
+                          minlength="8"
+                      />
+                      <button type="button" class="toggle-password-btn" data-target="reg-password" aria-label="Mostrar u ocultar contraseña">
+                          <i class="fa-regular fa-eye"></i>
+                      </button>
+                  </div>
+                  <div id="reg-password-error" class="field-error-message">
+                      <i class="fa-solid fa-triangle-exclamation"></i>
+                      <span>La contraseña debe tener al menos 8 caracteres.</span>
+                  </div>
+              </div>
                 <div style="display: flex; gap: 16px">
                     <div class="auth-form-group" style="flex: 1">
                         <label>Carrera</label>
@@ -362,19 +372,24 @@
                 </div>
 
                 <div class="auth-form-group">
-                    <label>Nueva contraseña</label>
-                    <input
-                        type="password"
-                        id="reset-password"
-                        class="auth-input"
-                        placeholder="Mínimo 8 caracteres"
-                        minlength="8"
-                    />
-                    <div id="reset-password-error" class="field-error-message">
-                        <i class="fa-solid fa-triangle-exclamation"></i>
-                        <span>La contraseña debe tener al menos 8 caracteres.</span>
-                    </div>
-                </div>
+                  <label>Nueva contraseña</label>
+                  <div class="password-input-wrapper">
+                      <input
+                          type="password"
+                          id="reset-password"
+                          class="auth-input"
+                          placeholder="Mínimo 8 caracteres"
+                          minlength="8"
+                      />
+                      <button type="button" class="toggle-password-btn" data-target="reset-password" aria-label="Mostrar u ocultar contraseña">
+                          <i class="fa-regular fa-eye"></i>
+                      </button>
+                  </div>
+                  <div id="reset-password-error" class="field-error-message">
+                      <i class="fa-solid fa-triangle-exclamation"></i>
+                      <span>La contraseña debe tener al menos 8 caracteres.</span>
+                  </div>
+              </div>
 
                 <button class="auth-btn" id="btn-reset">Actualizar contraseña</button>
             </div>
@@ -551,6 +566,9 @@
             <main class="main-content">
                 <div class="topbar-global">
                     <div class="topbar-left">
+                        <button type="button" id="btn-mobile-menu" class="mobile-menu-toggle" aria-label="Abrir menú">
+                        <i class="fa-solid fa-bars"></i>
+                        </button>
                         <div
                             class="topbar-brand-tag"
                             style="display: flex; align-items: center; gap: 10px"
@@ -3766,6 +3784,10 @@
                                             style="display: none"
                                             accept="image/jpeg, image/png"
                                         />
+                                        <button type="button" id="btn-remove-photo" class="btn"
+                                            style="display: none; background: #fef2f2; color: #b60d30; border: 1px solid #fecaca; font-size: 12px; padding: 6px 12px;">
+                                            <i class="fa-solid fa-trash-can"></i> Quitar foto
+                                        </button>
                                     </div>
                                 </div>
 
@@ -4199,27 +4221,40 @@
                                     ><i class="fa-solid fa-triangle-exclamation"></i> Zona de
                                     Peligro</div
                                 >
-                                <p
-                                    style="
-                                        margin-bottom: 20px;
-                                        color: var(--text-muted);
-                                        font-size: 14px;
-                                    "
-                                    >Esta acción es permanente. Se eliminarán todos tus datos,
-                                    sesiones, insignias y documentos.</p
-                                >
-
-                                <button
-                                    class="btn"
-                                    id="btn-delete-account"
-                                    style="
-                                        background: white;
-                                        border: 1px solid #d63031;
-                                        color: #d63031;
-                                        margin-bottom: 12px;
-                                    "
-                                    >Eliminar mi cuenta</button
-                                >
+                                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+                                    Al desactivar tu cuenta dejarás de aparecer en las búsquedas y se pausará tu actividad en la plataforma. Tu
+                                    historial se conserva.
+                                </p>
+                                
+                                <button type="button" class="btn" id="btn-delete-account"
+                                    style="background: #fef2f2; color: #b60d30; border: 1.5px solid #fecaca; font-weight: 700;">
+                                    Desactivar cuenta
+                                </button>
+                                
+                            <div id="desactivar-cuenta-box"
+                                style="display: none; margin-top: 16px; padding: 16px; border: 1px solid #fecaca; background: #fef2f2; border-radius: 12px; max-width: 420px;">
+                                <label for="desactivar-password"
+                                    style="display: block; font-size: 13px; font-weight: 700; color: #111827; margin-bottom: 8px;">
+                                    Confirma tu contraseña para desactivar la cuenta
+                                </label>
+                                <div class="password-wrapper" style="margin-bottom: 12px;">
+                                    <input type="password" id="desactivar-password" class="form-input" placeholder="Ingresa tu contraseña actual"
+                                        autocomplete="current-password" />
+                                    <button type="button" id="btn-toggle-desactivar-password" aria-label="Mostrar u ocultar contraseña">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                </div>
+                                <div style="display: flex; gap: 10px;">
+                                    <button type="button" class="btn btn-primary" id="btn-confirmar-desactivar-cuenta">
+                                        Confirmar desactivación
+                                    </button>
+                                    <button type="button" class="btn" id="btn-cancelar-desactivar-cuenta"
+                                        style="background: #ffffff; color: #334155; border: 1px solid #cbd5e1;">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </div>
+                                
                             </div>
                         </div>
                     </div>

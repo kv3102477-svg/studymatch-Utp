@@ -167,6 +167,15 @@ public class DocumentService {
         return (byte[]) documentoDAO.leerContenido(oid(locator)).get("contenido");
     }
 
+    @Transactional(rollbackFor = Exception.class)
+    public void deletePhoto(long student) {
+        var previous = estudianteDAO.bloquearFoto(student);
+        if (previous != null && previous.get("foto_url") != null) {
+            unlink(previous.get("foto_url"));
+            estudianteDAO.cambiarFoto(null, student);
+        }
+    }
+    
     public static ChatFile chatFile(String text) {
         if (text == null || !text.startsWith(FILE_PREFIX)) return null;
         try {

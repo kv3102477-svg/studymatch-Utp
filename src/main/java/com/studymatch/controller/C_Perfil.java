@@ -43,8 +43,9 @@ public class C_Perfil {
     }
 
     @DeleteMapping("/cuenta")
-    public Object delete(HttpSession s) {
-        Object result = estudianteService.delete(student(s));
+    public Object delete(HttpSession s, @RequestBody(required = false) Map<String, String> input) {
+        String contrasena = input != null ? input.get("contrasena") : null;
+        Object result = estudianteService.delete(student(s), contrasena);
         s.invalidate();
         return result;
     }
