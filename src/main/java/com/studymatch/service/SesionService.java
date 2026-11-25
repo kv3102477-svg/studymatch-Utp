@@ -146,10 +146,6 @@ public class SesionService {
         );
         int duration = (int) requestedDuration;
         LocalDateTime date = LocalDateTime.parse(text(input, "fecha_hora", 30));
-        if (!date.isAfter(now().plusHours(24))) throw new ResponseStatusException(
-            BAD_REQUEST,
-            "Programa la sesión con más de 24 horas de anticipación."
-        );
         validateProposal(student, other, subject, mentor, date, duration);
         long session = sesionDAO.crearPropuesta(
             student,
@@ -218,10 +214,6 @@ public class SesionService {
                 ? id(row, "receptor_id")
                 : id(row, "proponente_id");
             LocalDateTime fecha = LocalDateTime.parse(text(input, "fecha_hora", 30));
-            if (!fecha.isAfter(now().plusHours(24))) throw new ResponseStatusException(
-                BAD_REQUEST,
-                "Programa la sesión con más de 24 horas de anticipación."
-            );
             int minutos = (int) number(input, "duracion_programada_min");
             if (minutos > 480) throw new ResponseStatusException(
                 BAD_REQUEST,
