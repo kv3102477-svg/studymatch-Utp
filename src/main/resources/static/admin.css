@@ -70,3 +70,4 @@
 .logout{display:flex;align-items:center;justify-content:center;gap:5px;flex:0 0 auto;margin-left:auto;padding:7px 6px;border-radius:8px;font:600 11px/1.2 Inter,Segoe UI,Arial,sans-serif;white-space:nowrap}
 .logout:hover,.logout:focus-visible{background:#f7e9ed;color:var(--brand-wine);outline:none}
 @media(max-width:680px){.logout{font-size:12px;padding:7px 10px}}
+.password-field input::-ms-reveal,.password-field input::-ms-clear{display:none}
