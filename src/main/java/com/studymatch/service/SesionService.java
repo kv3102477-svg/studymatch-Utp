@@ -17,7 +17,9 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -64,6 +66,16 @@ public class SesionService {
 
     private LocalDateTime now() {
         return LocalDateTime.now(clock);
+    }
+
+    private LocalDateTime parseSessionDateTime(String value) {
+        try {
+            return OffsetDateTime.parse(value)
+                .atZoneSameInstant(ZoneId.of("America/Bogota"))
+                .toLocalDateTime();
+        } catch (DateTimeParseException noOffset) {
+            return LocalDateTime.parse(value);
+        }
     }
 
     private boolean isExpiredRow(Map<String, Object> row) {
@@ -145,7 +157,7 @@ public class SesionService {
             "La sesión puede durar hasta 480 minutos."
         );
         int duration = (int) requestedDuration;
-        LocalDateTime date = LocalDateTime.parse(text(input, "fecha_hora", 30));
+        LocalDateTime date = parseSessionDateTime(text(input, "fecha_hora", 30));
         validateProposal(student, other, subject, mentor, date, duration);
         long session = sesionDAO.crearPropuesta(
             student,
@@ -213,7 +225,7 @@ public class SesionService {
             long other = id(row, "proponente_id") == student
                 ? id(row, "receptor_id")
                 : id(row, "proponente_id");
-            LocalDateTime fecha = LocalDateTime.parse(text(input, "fecha_hora", 30));
+            LocalDateTime fecha = parseSessionDateTime(text(input, "fecha_hora", 30));
             int minutos = (int) number(input, "duracion_programada_min");
             if (minutos > 480) throw new ResponseStatusException(
                 BAD_REQUEST,
