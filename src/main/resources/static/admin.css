@@ -77,3 +77,6 @@
 .student-return{display:block;width:max-content;max-width:100%;margin:16px auto 0;color:var(--brand-wine);font-size:13px;font-weight:700;text-decoration:none}
 .student-return:hover{text-decoration:underline}
 @media(max-width:680px){.back-to-students{margin:6px 0;padding:9px 10px}}
+
+/* Acceso de cierre visible en la esquina superior derecha del panel */
+.header-tools{display:flex;align-items:center;justify-content:flex-end;gap:10px}.header-logout{margin:0;padding:9px 13px;border:1px solid var(--line);border-radius:20px;background:#fff;color:#68748a;font-size:12px}.header-logout:hover,.header-logout:focus-visible{border-color:#e8c5ce;background:#f7e9ed;color:var(--brand-wine)}@media(max-width:680px){.header-tools{margin-left:auto;gap:7px;flex-wrap:wrap}.header-logout{font-size:12px;padding:8px 10px}.main header{align-items:center}}
