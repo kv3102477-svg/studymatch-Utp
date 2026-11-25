@@ -21,16 +21,117 @@ const setText = (id, value) => {
 const show = (id, visible, display = "block") => {
     if ($(id)) $(id).style.display = visible ? display : "none";
 };
+
+function repairMojibake(value) {
+    const raw = String(value ?? "");
+    if (!/[ÃÂâð]/.test(raw)) return raw;
+    try {
+        const bytes = new Uint8Array([...raw].map((ch) => ch.charCodeAt(0) & 0xff));
+        const decoded = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+        return decoded && !decoded.includes("\ufffd") ? decoded : raw;
+    } catch {
+        return raw;
+    }
+}
+
 const dateText = (value) =>
     value
         ? new Date(value).toLocaleString("es-PE", {
               timeZone: "America/Bogota",
               dateStyle: "medium",
               timeStyle: "short",
+              hour12: false,
           })
         : "—";
+const buildPeruSessionDateTime = (date, time) => {
+    const cleanDate = String(date || "").trim();
+    const cleanTime = String(time || "").trim();
+    const withSeconds = /^\d{2}:\d{2}$/.test(cleanTime) ? `${cleanTime}:00` : cleanTime;
+    return `${cleanDate}T${withSeconds}`;
+};
 const empty = (text) =>
-    `<div style="padding:24px;text-align:center;color:var(--text-muted);grid-column:1/-1;">${escapeHtml(text)}</div>`;
+    `<div style="padding:24px;text-align:center;color:var(--text-muted);grid-column:1/-1;">${escapeHtml(repairMojibake(text))}</div>`;
+
+const MIN_RESCHEDULE_ADVANCE_HOURS = 6;
+const SCHEDULE_MIN_MINUTES = 6 * 60;
+const SCHEDULE_MAX_MINUTES = 22 * 60;
+const MEETING_OPEN_LEAD_MS = 30 * 60 * 1000;
+
+function formatMinutes24h(totalMinutes) {
+    const clamped = Math.max(0, Math.min(24 * 60, Number(totalMinutes) || 0));
+    const hh = Math.floor(clamped / 60);
+    const mm = clamped % 60;
+    return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
+function formatLocalDateInput(dateObj) {
+    const d = dateObj instanceof Date ? dateObj : new Date(dateObj);
+    return [
+        d.getFullYear(),
+        String(d.getMonth() + 1).padStart(2, "0"),
+        String(d.getDate()).padStart(2, "0"),
+    ].join("-");
+}
+
+function canRescheduleSession(session) {
+    if (!session || !["PROPUESTA", "CONFIRMADA"].includes(session.estado)) return false;
+    const startMs = new Date(session.fecha_hora).getTime();
+    if (Number.isNaN(startMs)) return true;
+    const minAdvanceMs = MIN_RESCHEDULE_ADVANCE_HOURS * 60 * 60 * 1000;
+    return startMs - Date.now() >= minAdvanceMs;
+}
+
+function getMeetingWindowStatus(session) {
+    const startMs = new Date(session?.fecha_hora).getTime();
+    if (Number.isNaN(startMs)) {
+        return { canJoin: true };
+    }
+    const openAtMs = startMs - MEETING_OPEN_LEAD_MS;
+    return {
+        canJoin: session?.estado === "EN_CURSO" || Date.now() >= openAtMs,
+    };
+}
+
+function syncSessionAdvanceLabels() {
+    const dateLabel =
+        $("sesion-fecha")?.closest(".form-group, .field-group, div")?.querySelector("label") ||
+        document.querySelector('label[for="sesion-fecha"]');
+    if (dateLabel && /anticipaci/i.test(dateLabel.textContent || "")) {
+        dateLabel.textContent = reschedulingSessionId
+            ? "Fecha (Hasta 6h antes)"
+            : "Fecha";
+    }
+    const timeLabel =
+        $("sesion-hora")?.closest(".form-group, .field-group, div")?.querySelector("label") ||
+        document.querySelector('label[for="sesion-hora"]');
+    if (timeLabel && !/\(24h\)/i.test(timeLabel.textContent || "")) {
+        timeLabel.textContent = `${(timeLabel.textContent || "Hora").trim()} (24h)`;
+    }
+}
+
+function hideDocumentsTab() {
+    document
+        .querySelectorAll(
+            '#tab-informacion .sub-tabs-container .tab[data-target*="doc"], #tab-informacion .sub-tabs-container .tab[data-target*="documento"], #tab-informacion > .tab-content[id*="doc"], #tab-informacion > .tab-content[id*="documento"], #upload-drop-area, #upload-confirm-area, #uploaded-files-list, [id*="documentos"]',
+        )
+        .forEach((el) => {
+            if (el.id === "uploaded-files-list") return;
+            const text = (el.textContent || "").trim();
+            if (
+                el.matches('[data-target*="doc"], [data-target*="documento"], [id*="doc"], [id*="documento"], #upload-drop-area, #upload-confirm-area') ||
+                /^documentos$/i.test(text)
+            ) {
+                el.style.setProperty("display", "none", "important");
+                el.setAttribute("hidden", "true");
+            }
+        });
+    document.querySelectorAll("#tab-informacion .sub-tabs-container .tab").forEach((tab) => {
+        if (/documento/i.test(tab.textContent || "")) {
+            tab.style.setProperty("display", "none", "important");
+            tab.setAttribute("hidden", "true");
+        }
+    });
+}
 
 function createReferenceId() {
     try {
@@ -267,7 +368,7 @@ async function loadCatalogs() {
 
 function notify(text, error = false) {
     const box = $("live-status");
-    box.textContent = text;
+    box.textContent = repairMojibake(text);
     box.style.background = error ? "#8e1230" : "#161616";
     box.style.display = "block";
     clearTimeout(statusTimer);
@@ -292,7 +393,7 @@ async function api(path, method = "GET", data) {
             loggedOut();
             await token();
         }
-        throw new Error(result.error || result.message || "No se pudo completar la operación.");
+        throw new Error(repairMojibake(result.error || result.message || "No se pudo completar la operación."));
     }
     return result;
 }
@@ -493,6 +594,7 @@ function profile() {
         const el = $(id);
         el.value = Array.from(el.options).some((o) => o.value === value) ? value : "";
     }
+    hideDocumentsTab();
 }
 let verificationRequest = 0,
     verificationTimer = null,
@@ -777,23 +879,77 @@ async function loadMySubjects() {
 function slotKey(day, hour) {
     return `${day}:${hour}`;
 }
+function getCurrentWeekRangeData() {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const diffToMonday = (today.getDay() + 6) % 7;
+    const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - diffToMonday);
+    const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+
+    const shortDays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+    const days = shortDays.map((label, idx) => {
+        const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + idx);
+        const isToday = d.getTime() === today.getTime();
+        return {
+            dayNumber: idx + 1,
+            label,
+            dateNum: d.getDate(),
+            monthName: d.toLocaleDateString("es-PE", { month: "long" }),
+            isToday,
+        };
+    });
+
+    const startDay = monday.getDate();
+    const endDay = sunday.getDate();
+    const startMonth = monday.toLocaleDateString("es-PE", { month: "long" });
+    const endMonth = sunday.toLocaleDateString("es-PE", { month: "long" });
+    const rangeText =
+        startMonth === endMonth
+            ? `Del ${startDay} al ${endDay} de ${startMonth}`
+            : `Del ${startDay} de ${startMonth} al ${endDay} de ${endMonth}`;
+
+    return { days, rangeText };
+}
 function drawSchedule() {
     const grid = $("schedule-grid");
+    const { days, rangeText } = getCurrentWeekRangeData();
+
+    let rangeBadge = $("schedule-week-range");
+    if (!rangeBadge) {
+        rangeBadge = document.createElement("div");
+        rangeBadge.id = "schedule-week-range";
+        rangeBadge.style.cssText =
+            "font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:10px;";
+        grid.parentElement?.insertBefore(rangeBadge, grid);
+    }
+    rangeBadge.textContent = rangeText;
+
     grid.innerHTML =
         '<div class="grid-header"></div>' +
-        ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
-            .map((d) => `<div class="grid-header">${d}</div>`)
+        days
+            .map(
+                (d) =>
+                    `<div class="grid-header" style="${d.isToday ? "background:var(--primary-light);color:var(--primary);font-weight:700;border-radius:6px;" : ""}">${d.label} ${d.dateNum}</div>`,
+            )
             .join("");
     for (let hour = 6; hour < 23; hour++) {
         grid.insertAdjacentHTML(
             "beforeend",
             `<div class="grid-time">${String(hour).padStart(2, "0")}:00</div>`,
         );
-        for (let day = 1; day <= 7; day++)
+        for (let day = 1; day <= 7; day++) {
+            const isSelected = selectedSlots.has(slotKey(day, hour));
+            const dayObj = days[day - 1];
+            const cellBg = isSelected
+                ? "background:var(--secondary-light);color:var(--secondary);"
+                : dayObj?.isToday
+                  ? "background:#fff8fa;"
+                  : "";
             grid.insertAdjacentHTML(
                 "beforeend",
-                `<button type="button" class="grid-cell ${selectedSlots.has(slotKey(day, hour)) ? "selected" : ""}" data-slot="${slotKey(day, hour)}" aria-label="Día ${day}, ${hour}:00" aria-pressed="${selectedSlots.has(slotKey(day, hour))}" style="border:1px solid var(--border-color);min-height:40px;cursor:pointer;${selectedSlots.has(slotKey(day, hour)) ? "background:var(--secondary-light);color:var(--secondary);" : ""}">${selectedSlots.has(slotKey(day, hour)) ? '<i class="fa-solid fa-check"></i>' : ""}</button>`,
+                `<button type="button" class="grid-cell ${isSelected ? "selected" : ""}" data-slot="${slotKey(day, hour)}" aria-label="${dayObj?.label || "Día"} ${dayObj?.dateNum || day}, ${hour}:00" aria-pressed="${isSelected}" style="border:1px solid var(--border-color);min-height:40px;cursor:pointer;${cellBg}">${isSelected ? '<i class="fa-solid fa-check"></i>' : ""}</button>`,
             );
+        }
     }
 }
 function resetSchedule() {
@@ -905,11 +1061,10 @@ function sessionCard(s) {
     if (!expired) {
         if (s.estado === "PROPUESTA" && s.receptor_id === currentUser.id)
             actions += button("aceptar", "Aceptar");
-        if (["PROPUESTA", "CONFIRMADA"].includes(s.estado))
-            actions +=
-                button("reprogramar", "Reprogramar") +
-                button("cancelar", "Cancelar") +
-                button("enlace", "Añadir enlace");
+        if (["PROPUESTA", "CONFIRMADA"].includes(s.estado)) {
+            if (canRescheduleSession(s)) actions += button("reprogramar", "Reprogramar");
+            actions += button("cancelar", "Cancelar") + button("enlace", "Añadir enlace");
+        }
         if (
             ["CONFIRMADA", "EN_CURSO"].includes(s.estado) &&
             s.enlace_videollamada?.startsWith("https://")
@@ -944,6 +1099,7 @@ function sessionCard(s) {
         new Date(s.fecha_hora).toLocaleTimeString("es-PE", {
             timeZone: "America/Bogota",
             timeStyle: "short",
+            hour12: false,
         }),
     );
     fill(
@@ -956,7 +1112,26 @@ function sessionCard(s) {
     card.querySelector('[data-field="acciones"]').innerHTML = actions;
     return card.outerHTML;
 }
+function paintSessionTabs() {
+    const activeTab = pastSessions ? $("tab-pasadas") : $("tab-proximas");
+    const inactiveTab = pastSessions ? $("tab-proximas") : $("tab-pasadas");
+    if (activeTab) {
+        activeTab.classList.add("active");
+        activeTab.setAttribute("aria-selected", "true");
+        activeTab.style.setProperty("color", "var(--primary, #b30832)", "important");
+        activeTab.style.setProperty("border-bottom", "2px solid var(--primary, #b30832)", "important");
+        activeTab.style.setProperty("font-weight", "600", "important");
+    }
+    if (inactiveTab) {
+        inactiveTab.classList.remove("active");
+        inactiveTab.setAttribute("aria-selected", "false");
+        inactiveTab.style.removeProperty("color");
+        inactiveTab.style.removeProperty("border-bottom");
+        inactiveTab.style.removeProperty("font-weight");
+    }
+}
 function renderSessions() {
+    paintSessionTabs();
     const rows = sessions.filter((s) =>
         pastSessions ? isExpiredSession(s) : !isExpiredSession(s),
     );
@@ -1136,9 +1311,15 @@ function fillSessionSubjects() {
     fillSessionMentor();
 }
 function commonAvailability() {
+    syncSessionAdvanceLabels();
     const date = $("sesion-fecha").value;
+    const duration = Number($("sesion-duracion").value) * 60;
     if (!date) {
-        setText("sesion-disponibilidad", "Selecciona una fecha para ver la disponibilidad común.");
+        setText(
+            "sesion-disponibilidad",
+            `Selecciona una fecha para ver la disponibilidad común (06:00–22:00, formato 24h).`,
+        );
+        $("sesion-hora").disabled = true;
         return [];
     }
     const day = new Date(date + "T12:00:00").getDay() || 7;
@@ -1147,7 +1328,11 @@ function commonAvailability() {
         const merged = [];
         for (const row of rows
             .filter((h) => Number(h.dia_semana) === day)
-            .map((h) => [minutes(h.hora_inicio), minutes(h.hora_fin)])
+            .map((h) => [
+                Math.max(SCHEDULE_MIN_MINUTES, minutes(h.hora_inicio)),
+                Math.min(SCHEDULE_MAX_MINUTES, minutes(h.hora_fin)),
+            ])
+            .filter((r) => r[0] < r[1])
             .sort((a, b) => a[0] - b[0])) {
             const last = merged.at(-1);
             if (last && row[0] <= last[1]) last[1] = Math.max(last[1], row[1]);
@@ -1162,21 +1347,18 @@ function commonAvailability() {
                 end = Math.min(a[1], b[1]);
             if (start < end) common.push([start, end]);
         }
-    const time = (n) =>
-        String(Math.floor(n / 60)).padStart(2, "0") + ":" + String(n % 60).padStart(2, "0");
     setText(
         "sesion-disponibilidad",
         common.length
-            ? "Disponibilidad común: " +
-                  common.map((r) => time(r[0]) + "–" + time(r[1])).join(" · ")
-            : "No tienen disponibilidad en común este día.",
+            ? "Disponibilidad común (24h, máx. 22:00): " +
+                  common.map((r) => `${formatMinutes24h(r[0])}–${formatMinutes24h(r[1])}`).join(" · ")
+            : "No tienen disponibilidad en común este día (rango 06:00–22:00, 24h).",
     );
-    const duration = Number($("sesion-duracion").value) * 60;
     const allowed = common.filter((r) => r[1] - r[0] >= duration);
     $("sesion-hora").disabled = !allowed.length;
     if (allowed.length) {
-        $("sesion-hora").min = time(allowed[0][0]);
-        $("sesion-hora").max = time(allowed.at(-1)[1] - duration);
+        $("sesion-hora").min = formatMinutes24h(allowed[0][0]);
+        $("sesion-hora").max = formatMinutes24h(allowed.at(-1)[1] - duration);
     }
     return common;
 }
@@ -1184,14 +1366,23 @@ function validateSessionTime() {
     const ranges = commonAvailability(),
         date = $("sesion-fecha").value,
         time = $("sesion-hora").value;
-    if (!date || !time) throw new Error("Selecciona la fecha y hora de la sesión.");
+    if (!date || !time) throw new Error("Selecciona la fecha y hora (formato 24h) de la sesión.");
     const start = Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5)),
         duration = Number($("sesion-duracion").value) * 60;
+    if (start < SCHEDULE_MIN_MINUTES || start + duration > SCHEDULE_MAX_MINUTES)
+        throw new Error("El horario disponible es de 06:00 a 22:00 (formato 24h).");
     if (!ranges.some((r) => start >= r[0] && start + duration <= r[1]))
-        throw new Error("La sesión completa debe estar dentro de la disponibilidad de ambos.");
-    const begin = new Date(date + "T" + time),
+        throw new Error("La sesión completa debe estar dentro de la disponibilidad común de ambos (06:00–22:00).");
+    const begin = new Date(buildPeruSessionDateTime(date, time) + "-05:00"),
         end = new Date(begin.getTime() + duration * 60000);
-    const minAllowed = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    if (begin.getTime() <= Date.now()) {
+        throw new Error("La fecha y hora elegidas deben ser posteriores al momento actual.");
+    }
+    if (reschedulingSessionId && !canRescheduleSession(reschedulingSessionRow)) {
+        throw new Error(
+            `Esta sesión ya no se puede reprogramar porque faltan menos de ${MIN_RESCHEDULE_ADVANCE_HOURS} horas para su inicio.`,
+        );
+    }
     if (
         sessionBusy.some((s) => {
             if (reschedulingSessionId && Number(s.id) === Number(reschedulingSessionId)) return false;
@@ -1205,6 +1396,11 @@ function validateSessionTime() {
 async function openRescheduleModal(sessionId) {
     const row = sessions.find((s) => Number(s.id) === Number(sessionId));
     if (!row) return;
+    if (!canRescheduleSession(row)) {
+        throw new Error(
+            `Solo puedes reprogramar hasta ${MIN_RESCHEDULE_ADVANCE_HOURS} horas antes de que inicie la reunión.`,
+        );
+    }
     const peerId =
         Number(row.proponente_id) === Number(currentUser.id)
             ? row.receptor_id
@@ -1223,15 +1419,10 @@ async function openRescheduleModal(sessionId) {
         ["PROPUESTA", "CONFIRMADA", "EN_CURSO"].includes(s.estado),
     );
     if ($("sesion-materia-search")) $("sesion-materia-search").value = "";
-    const minDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
     $("sesion-fecha").value = "";
     $("sesion-hora").value = "";
     $("sesion-hora").disabled = true;
-    $("sesion-fecha").min = [
-        minDate.getFullYear(),
-        String(minDate.getMonth() + 1).padStart(2, "0"),
-        String(minDate.getDate()).padStart(2, "0"),
-    ].join("-");
+    $("sesion-fecha").min = formatLocalDateInput(new Date());
     fillSessionSubjects();
     $("sesion-materia").value = String(row.materia_id);
     $("sesion-materia").disabled = true;
@@ -1273,12 +1464,7 @@ window.proponerSesionDesdeCompanero = async () => {
         $("sesion-fecha").value = "";
         $("sesion-hora").value = "";
         $("sesion-hora").disabled = true;
-        const today = new Date();
-        $("sesion-fecha").min = [
-            today.getFullYear(),
-            String(today.getMonth() + 1).padStart(2, "0"),
-            String(today.getDate()).padStart(2, "0"),
-        ].join("-");
+        $("sesion-fecha").min = formatLocalDateInput(new Date());
         fillSessionSubjects();
         commonAvailability();
         show("modal-companero-perfil", false);
@@ -1306,7 +1492,7 @@ async function loadNotifications() {
         ? rows
               .map(
                   (n) =>
-                      `<div class="section-card" style="margin:0;${n.leida ? "" : "border-left:4px solid var(--primary);"}"><h3 style="font-size:15px;">${escapeHtml(n.titulo)}</h3><p style="font-size:13px;margin:8px 0;color:var(--text-muted);">${escapeHtml(n.mensaje)}</p><small>${escapeHtml(dateText(n.creada_en))}</small><div style="display:flex;gap:10px;margin-top:12px;">${!n.leida ? `<button class="btn btn-secondary" data-read="${n.id}">Marcar como leída</button>` : ""}${n.tipo_evento === "PROPUESTA_SESION" ? '<button class="btn btn-primary" data-go-sessions>Ver sesiones</button>' : ""}</div></div>`,
+                      `<div class="section-card" style="margin:0;${n.leida ? "" : "border-left:4px solid var(--primary);"}"><h3 style="font-size:15px;">${escapeHtml(repairMojibake(n.titulo))}</h3><p style="font-size:13px;margin:8px 0;color:var(--text-muted);">${escapeHtml(repairMojibake(n.mensaje))}</p><small>${escapeHtml(dateText(n.creada_en))}</small><div style="display:flex;gap:10px;margin-top:12px;">${!n.leida ? `<button class="btn btn-secondary" data-read="${n.id}">Marcar como leída</button>` : ""}${n.tipo_evento === "PROPUESTA_SESION" ? '<button class="btn btn-primary" data-go-sessions>Ver sesiones</button>' : ""}</div></div>`,
               )
               .join("")
         : empty("No tienes notificaciones.");
@@ -1359,7 +1545,7 @@ async function loadMessages() {
 }
 function messageBubble(m) {
     const mine = m.emisor_id === currentUser.id;
-    let content = String(m.texto)
+    let content = repairMojibake(String(m.texto))
         .split(/(https?:\/\/[^\s]+)/g)
         .map((part) =>
             /^https?:\/\//.test(part)
@@ -1661,15 +1847,8 @@ async function paymentDemo(scenario = "APROBADO") {
 }
 
 async function loadDocuments() {
-    const rows = await api("/documentos");
-    $("uploaded-files-list").innerHTML = rows.length
-        ? rows
-              .map(
-                  (d) =>
-                      `<div style="display:flex;align-items:center;justify-content:space-between;padding:16px;border:1px solid var(--border-color);border-radius:10px;"><div><i class="fa-solid fa-file-lines" style="color:var(--primary);margin-right:10px;"></i><a href="/api/documentos/${d.id}">${escapeHtml(d.nombre_archivo)}</a><p style="font-size:12px;color:var(--text-muted);margin-top:5px;">${escapeHtml(d.tamano_mb)} MB · ${escapeHtml(dateText(d.subido_en))}</p></div><button class="btn" data-remove-document="${d.id}" aria-label="Eliminar documento"><i class="fa-solid fa-trash"></i></button></div>`,
-              )
-              .join("")
-        : empty("Aún no has subido documentos.");
+    hideDocumentsTab();
+    if ($("uploaded-files-list")) $("uploaded-files-list").innerHTML = "";
 }
 function reports() {
     const subject = $("select-filtro-curso-reporte").value,
@@ -1750,6 +1929,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     setupSubjectSearch();
     setupEnterActions();
     setupAppDialog();
+    syncSessionAdvanceLabels();
+    paintSessionTabs();
+    hideDocumentsTab();
     // 1. Mostrar / ocultar contraseña (ojito)
     document.querySelectorAll('input[type="password"]').forEach((input) => {
         const btn = input.parentElement?.querySelector("button");
@@ -1869,7 +2051,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     on("btn-dropdown-logout", executeLogout);
     on("btn-recover", async () => {
         const result = await api("/auth/recuperar", "POST", { correo: $("recover-email").value });
-        notify(result.mensaje);
+        notify(repairMojibake(result.mensaje));
         authPage("recover-sent-section");
     });
     on("btn-reset", async () => {
@@ -1879,7 +2061,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
         history.replaceState(null, "", location.pathname);
         authPage("login-section");
-        notify(result.mensaje);
+        notify(repairMojibake(result.mensaje));
     });
     document
         .querySelectorAll(".nav-item[data-target]")
@@ -1981,10 +2163,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         },
         "change",
     );
-    $("upload-drop-area").addEventListener("dragover", (e) => {
+    $("upload-drop-area")?.addEventListener("dragover", (e) => {
         e.preventDefault();
     });
-    $("upload-drop-area").addEventListener("drop", (e) => {
+    $("upload-drop-area")?.addEventListener("drop", (e) => {
         e.preventDefault();
         if (!e.dataTransfer.files.length) return;
         $("file-upload").files = e.dataTransfer.files;
@@ -2052,15 +2234,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         $(id).addEventListener("change", commonAvailability);
     on("btn-enviar-propuesta-sesion", async () => {
         validateSessionTime();
+        const fechaHora = buildPeruSessionDateTime($("sesion-fecha").value, $("sesion-hora").value);
         if (reschedulingSessionId) {
             await api(`/sesiones/${reschedulingSessionId}/reprogramar`, "POST", {
-                fecha_hora: $("sesion-fecha").value + "T" + $("sesion-hora").value,
+                fecha_hora: fechaHora,
                 duracion_programada_min: Number($("sesion-duracion").value) * 60,
             });
             reschedulingSessionId = null;
             reschedulingSessionRow = null;
             $("sesion-materia").disabled = false;
             $("sesion-mentor").disabled = false;
+            syncSessionAdvanceLabels();
             setText("btn-enviar-propuesta-sesion", "Enviar propuesta");
             show("modal-sesion", false);
             await loadSessions();
@@ -2069,11 +2253,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         if (!selectedStudent) throw new Error("Selecciona un compañero.");
         await api("/sesiones", "POST", {
-            receptor_id: selectedStudent.id,
-            materia_id: $("sesion-materia").value,
-            fecha_hora: $("sesion-fecha").value + "T" + $("sesion-hora").value,
+            receptor_id: Number(selectedStudent.id),
+            materia_id: Number($("sesion-materia").value),
+            fecha_hora: fechaHora,
             duracion_programada_min: Number($("sesion-duracion").value) * 60,
-            mentor_id: $("sesion-mentor").value,
+            mentor_id: Number($("sesion-mentor").value),
         });
         show("modal-sesion", false);
         await loadSessions();
@@ -2095,6 +2279,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 reschedulingSessionRow = null;
                 $("sesion-materia").disabled = false;
                 $("sesion-mentor").disabled = false;
+                syncSessionAdvanceLabels();
                 setText("btn-enviar-propuesta-sesion", "Enviar propuesta");
             }
             show(modal, false);
@@ -2110,12 +2295,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     on("tab-proximas", () => {
         pastSessions = false;
         renderSessions();
+        setTimeout(paintSessionTabs, 0);
     });
     on("tab-pasadas", () => {
         pastSessions = true;
         renderSessions();
+        setTimeout(paintSessionTabs, 0);
     });
-    on("btn-rf027-refresh", loadSessions);
+    on("btn-rf027-refresh", async () => {
+        await loadSessions();
+        notify("Sesiones actualizadas.");
+    });
     on("btn-rf033-refresh", loadRanking);
     on("btn-back-notifs", () => navigate("notificaciones-section"));
     on("btn-back-notifs-sesion", () => navigate("notificaciones-section"));
@@ -2141,7 +2331,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
         show("modal-calificacion", false);
         await loadSessions();
-        notify(result.mensaje);
+        notify(repairMojibake(result.mensaje));
     });
     $("calif-comentario-input").addEventListener("input", () =>
         setText("calif-char-counter", $("calif-comentario-input").value.length + "/500"),
@@ -2387,6 +2577,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                         selectedCancellation = id;
                         show("modal-cancelacion", true, "flex");
                         return;
+                    }
+                    if (action === "iniciar") {
+                        const windowStatus = getMeetingWindowStatus(row);
+                        if (!windowStatus.canJoin) {
+                            notify("Podrás iniciar la reunión desde 30 minutos antes.", true);
+                            return;
+                        }
                     }
                     const data = {};
                     if (action === "enlace") {

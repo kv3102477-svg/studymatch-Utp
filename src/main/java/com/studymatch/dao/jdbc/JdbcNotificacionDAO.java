@@ -57,13 +57,13 @@ public class JdbcNotificacionDAO implements NotificacionDAO {
         return sql.one("SELECT pg_try_advisory_xact_lock(72813491) AS acquired");
     }
 
-    @Override
+   @Override
     public int recordarSesiones() {
         return sql.update(
             "INSERT INTO " +
                 "notificacion(receptor_id,titulo,mensaje,tipo_evento,referencia_id,tipo,canal,estado_envio) " +
-                "SELECT who.id,'Recordatorio de sesiÃ³n','Tienes una sesiÃ³n confirmada en las " +
-                "prÃ³ximas 24 horas.','RECORDATORIO',s.id,'IN_APP','AMBOS','PENDIENTE_REINTENTO' " +
+                "SELECT who.id,'Recordatorio de sesión','Tienes una sesión confirmada en las " +
+                "próximas 24 horas.','RECORDATORIO',s.id,'IN_APP','AMBOS','PENDIENTE_REINTENTO' " +
                 "FROM sesion s CROSS JOIN LATERAL (VALUES(s.proponente_id),(s.receptor_id)) who(id) " +
                 "JOIN estudiante e ON e.id=who.id AND e.cuenta_activa=true " +
                 "WHERE s.estado='CONFIRMADA' AND s.fecha_hora>CURRENT_TIMESTAMP AND " +
@@ -73,21 +73,22 @@ public class JdbcNotificacionDAO implements NotificacionDAO {
         );
     }
 
+
     @Override
     public int recordarVencimientos() {
         return sql.update(
             "INSERT INTO " +
                 "notificacion(receptor_id,titulo,mensaje,tipo_evento,referencia_id,tipo,canal,estado_envio,dias_aviso) " +
-                "SELECT su.estudiante_id,'Vencimiento de suscripciÃ³n','Tu suscripciÃ³n vence en " +
+                "SELECT su.estudiante_id,'Vencimiento de suscripción','Tu suscripción vence en " +
                 "'||(su.fecha_vencimiento-CURRENT_DATE)||' " +
-                "dÃ­as.','SISTEMA',su.id,'IN_APP','AMBOS','PENDIENTE_REINTENTO',su.fecha_vencimiento-CURRENT_DATE " +
+                "días.','SISTEMA',su.id,'IN_APP','AMBOS','PENDIENTE_REINTENTO',su.fecha_vencimiento-CURRENT_DATE " +
                 "FROM suscripcion su JOIN estudiante e ON e.id=su.estudiante_id AND e.cuenta_activa=true " +
                 "WHERE su.estado IN ('TRIAL','ACTIVO') AND su.fecha_vencimiento-CURRENT_DATE IN (15,7,3,1,0) " +
                 "AND NOT EXISTS(SELECT 1 FROM suscripcion newer WHERE " +
                 "newer.estudiante_id=su.estudiante_id AND newer.id>su.id AND newer.estado IN " +
                 "('TRIAL','ACTIVO') AND newer.fecha_vencimiento>=CURRENT_DATE) " +
                 "AND NOT EXISTS(SELECT 1 FROM notificacion n WHERE n.receptor_id=su.estudiante_id AND " +
-                "n.referencia_id=su.id AND n.titulo='Vencimiento de suscripciÃ³n' AND " +
+                "n.referencia_id=su.id AND n.titulo='Vencimiento de suscripción' AND " +
                 "n.dias_aviso=su.fecha_vencimiento-CURRENT_DATE)"
         );
     }
