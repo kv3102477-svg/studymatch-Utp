@@ -47,7 +47,7 @@ const buildPeruSessionDateTime = (date, time) => {
     const cleanDate = String(date || "").trim();
     const cleanTime = String(time || "").trim();
     const withSeconds = /^\d{2}:\d{2}$/.test(cleanTime) ? `${cleanTime}:00` : cleanTime;
-    return `${cleanDate}T${withSeconds}`;
+    return `${cleanDate}T${withSeconds}-05:00`;
 };
 const empty = (text) =>
     `<div style="padding:24px;text-align:center;color:var(--text-muted);grid-column:1/-1;">${escapeHtml(repairMojibake(text))}</div>`;
@@ -1373,7 +1373,7 @@ function validateSessionTime() {
         throw new Error("El horario disponible es de 06:00 a 22:00 (formato 24h).");
     if (!ranges.some((r) => start >= r[0] && start + duration <= r[1]))
         throw new Error("La sesión completa debe estar dentro de la disponibilidad común de ambos (06:00–22:00).");
-    const begin = new Date(buildPeruSessionDateTime(date, time) + "-05:00"),
+    const begin = new Date(buildPeruSessionDateTime(date, time)),
         end = new Date(begin.getTime() + duration * 60000);
     if (begin.getTime() <= Date.now()) {
         throw new Error("La fecha y hora elegidas deben ser posteriores al momento actual.");
