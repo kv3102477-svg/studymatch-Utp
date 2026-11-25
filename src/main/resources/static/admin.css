@@ -59,3 +59,9 @@
   .shortcut-card .primary{width:100%}
 }
 .success-message{color:#16805c;font-size:13px;min-height:20px}
+.password-field{position:relative;width:100%;min-width:0}
+.password-field input{width:100%;padding-right:46px}
+.password-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:32px;height:32px;padding:5px;border:0;border-radius:7px;background:transparent;color:#778198;cursor:pointer}
+.password-toggle:hover,.password-toggle:focus-visible{color:var(--brand-wine);background:#f7e9ed;outline:none}
+.password-toggle svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.admin-inline-password{min-width:0}

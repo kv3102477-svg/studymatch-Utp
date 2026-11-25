@@ -19,6 +19,16 @@ async function login(){
   catch(e){$("login-error").textContent=e.message;}
 }
 function showAuth(section){["login","recover","reset"].forEach(id=>$(id).classList.toggle("hidden",id!==section));}
+document.querySelectorAll("[data-toggle-password]").forEach(button=>{
+  button.addEventListener("click",()=>{
+    const input=$(button.dataset.togglePassword),showPassword=input.type==="password";
+    input.type=showPassword?"text":"password";
+    button.setAttribute("aria-pressed",String(showPassword));
+    button.setAttribute("aria-label",showPassword?"Ocultar contraseña":"Mostrar contraseña");
+    button.querySelector(".eye-open").classList.toggle("hidden",showPassword);
+    button.querySelector(".eye-closed").classList.toggle("hidden",!showPassword);
+  });
+});
 async function restore(){await loadCsrf();try{const me=await request("/me");showApp(me.nombre,me.correo);await loadSummary();}catch{}}
 async function loadSummary(){const d=await request("/resumen");$("stat-users").textContent=d.usuarios;$("stat-active").textContent=d.usuarios_activos;$("stat-courses").textContent=d.cursos;$("stat-careers").textContent=d.carreras;}
 async function loadUsers(force=false){
@@ -112,7 +122,7 @@ $("forgot-password").onclick=e=>{e.preventDefault();$("recover-email").value=$("
 $("back-to-login").onclick=e=>{e.preventDefault();showAuth("login");};
 $("recover-form").onsubmit=async e=>{
   e.preventDefault();$("recover-message").textContent="";$("recover-message").classList.remove("success-message");
-  try{await loadCsrf();const d=await request("/recuperar",{method:"POST",body:JSON.stringify({correo:$("recover-email").value})});$("recover-message").textContent=d.mensaje;$("recover-message").classList.add("success-message");}
+  try{await loadCsrf();const d=await request("/recuperar",{method:"POST",body:JSON.stringify({correo:$("recover-email").value})});$("recover-message").textContent=d.mensaje;$("recover-message").classList.toggle("success-message",d.enviado);$("recover-message").classList.toggle("error",!d.enviado);}
   catch(x){$("recover-message").textContent=x.message;}
 };
 const resetToken=new URLSearchParams(location.search).get("reset");
