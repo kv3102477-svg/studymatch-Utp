@@ -55,16 +55,16 @@ public class AdminApi {
         String email=Objects.toString(input.get("correo"),"").trim().toLowerCase(Locale.ROOT);
         if (email.length()>160 || !email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Escribe un correo válido.");
-        List<Map<String,Object>> rows=db.queryForList("SELECT id,correo FROM admin_usuario WHERE lower(correo)=? AND activo=true",email);
-        if (!rows.isEmpty()) {
-            long id=((Number)rows.get(0).get("id")).longValue();
-            byte[] bytes=new byte[32]; new SecureRandom().nextBytes(bytes);
-            String resetToken=HexFormat.of().formatHex(bytes);
-            db.update("UPDATE admin_recuperacion SET usado=true WHERE admin_id=? AND usado=false",id);
-            db.update("INSERT INTO admin_recuperacion(admin_id,token_hash,expira_en) VALUES (?,?,CURRENT_TIMESTAMP + INTERVAL '30 minutes')",id,hash(resetToken));
-            recovery.sendAdminRecovery(Objects.toString(rows.get(0).get("correo")),appUrl.replaceAll("/$","")+"/admin.html?reset="+resetToken);
-        }
-        return Map.of("mensaje","Si existe una cuenta administrativa con ese correo, recibirás un enlace de recuperación.");
+        List<Map<String,Object>> rows=db.queryForList("SELECT id,correo,activo FROM admin_usuario WHERE lower(correo)=?",email);
+        if (rows.isEmpty()) return Map.of("mensaje","No hay una cuenta administrativa registrada con ese correo.","enviado",false);
+        if (!Boolean.TRUE.equals(rows.get(0).get("activo"))) return Map.of("mensaje","La cuenta administrativa está desactivada. Contacta con soporte.","enviado",false);
+        long id=((Number)rows.get(0).get("id")).longValue();
+        byte[] bytes=new byte[32]; new SecureRandom().nextBytes(bytes);
+        String resetToken=HexFormat.of().formatHex(bytes);
+        db.update("UPDATE admin_recuperacion SET usado=true WHERE admin_id=? AND usado=false",id);
+        db.update("INSERT INTO admin_recuperacion(admin_id,token_hash,expira_en) VALUES (?,?,CURRENT_TIMESTAMP + INTERVAL '30 minutes')",id,hash(resetToken));
+        recovery.sendAdminRecovery(Objects.toString(rows.get(0).get("correo")),appUrl.replaceAll("/$","")+"/admin.html?reset="+resetToken);
+        return Map.of("mensaje","Te enviamos un enlace para restablecer la contraseña al correo registrado.","enviado",true);
     }
     @PostMapping("/restablecer") public Object restablecer(@RequestBody Map<String,String> input,HttpSession s,@RequestHeader(value="X-CSRF-Token",required=false) String token) {
         csrf(s,token);
@@ -83,9 +83,11 @@ public class AdminApi {
         csrf(s,token);
         String email=Objects.toString(input.get("correo"),"").trim().toLowerCase();
         String raw=Objects.toString(input.get("contrasena"),"");
-        List<Map<String,Object>> rows=db.queryForList("SELECT correo,nombre,contrasena_hash FROM admin_usuario WHERE lower(correo)=? AND activo=true",email);
-        if(rows.isEmpty() || !passwords.matches(raw,Objects.toString(rows.get(0).get("contrasena_hash"),"")))
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,"Correo o contraseña incorrectos.");
+        List<Map<String,Object>> rows=db.queryForList("SELECT correo,nombre,contrasena_hash,activo FROM admin_usuario WHERE lower(correo)=?",email);
+        if(rows.isEmpty()) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,"No existe una cuenta administrativa registrada con ese correo.");
+        if(!Boolean.TRUE.equals(rows.get(0).get("activo"))) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,"La cuenta administrativa está desactivada. Contacta con soporte.");
+        if(!passwords.matches(raw,Objects.toString(rows.get(0).get("contrasena_hash"),"")))
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,"La contraseña ingresada es incorrecta.");
         String name=Objects.toString(rows.get(0).get("nombre"),"Administrador");
         request.changeSessionId();
         s.setAttribute("adminEmail",email);
