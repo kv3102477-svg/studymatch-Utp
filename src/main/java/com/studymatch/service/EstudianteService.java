@@ -114,6 +114,14 @@ public class EstudianteService {
         String email = text(input, "correo", 120).toLowerCase(Locale.ROOT);
         long now = System.currentTimeMillis();
 
+        var rows = estudianteDAO.credenciales(email);
+        if (rows.isEmpty()) {
+            throw new ResponseStatusException(
+                UNAUTHORIZED,
+                "Este correo no está registrado. Regístrate para iniciar sesión."
+            );
+        }
+
         LoginAttemptState state = loginAttempts.get(email);
         if (state != null && state.lockedUntil() > now) {
             long remainingSeconds = (state.lockedUntil() - now + 999) / 1000;
@@ -129,10 +137,8 @@ public class EstudianteService {
         }
 
         String raw = input.get("contrasena");
-        var rows = estudianteDAO.credenciales(email);
         if (
             raw == null ||
-            rows.isEmpty() ||
             !passwords.matches(raw, String.valueOf(rows.get(0).get("contrasena_hash")))
         ) {
             int currentFailures = (state != null && state.lockedUntil() <= now)
@@ -147,10 +153,12 @@ public class EstudianteService {
             }
             loginAttempts.put(email, new LoginAttemptState(currentFailures, 0L));
             int remaining = MAX_LOGIN_ATTEMPTS - currentFailures;
+            String intentoMsg = remaining == 1
+                ? "Te queda 1 intento."
+                : "Te quedan " + remaining + " intentos.";
             throw new ResponseStatusException(
                 UNAUTHORIZED,
-                "Correo o contraseña incorrectos. Te quedan " + remaining +
-                    (remaining == 1 ? " intento." : " intentos.")
+                "Contraseña incorrecta. " + intentoMsg
             );
         }
 

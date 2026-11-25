@@ -835,13 +835,65 @@
                                 ></div>
                             </div>
                         </div>
-                        <div
-                            class="topbar-user-pill"
-                            id="topbar-user-avatar"
-                            title="Ir a Mi Perfil"
-                            data-go="perfil-section"
-                            >—</div
-                        >
+                        <div class="topbar-profile-menu" style="position: relative">
+                            <div
+                                class="topbar-user-pill"
+                                id="topbar-user-avatar"
+                                title="Opciones de cuenta"
+                                role="button"
+                                tabindex="0"
+                                aria-haspopup="true"
+                                aria-expanded="false"
+                                style="cursor: pointer"
+                                >—</div
+                            >
+                            <div
+                                id="topbar-profile-dropdown"
+                                style="
+                                    display: none;
+                                    position: absolute;
+                                    right: 0;
+                                    top: calc(100% + 12px);
+                                    min-width: 185px;
+                                    background: #ffffff;
+                                    border: 1px solid #e2e8f0;
+                                    border-radius: 10px;
+                                    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
+                                    z-index: 1250;
+                                    padding: 8px;
+                                "
+                            >
+                                <button
+                                    type="button"
+                                    id="btn-dropdown-logout"
+                                    style="
+                                        width: 100%;
+                                        display: flex;
+                                        align-items: center;
+                                        gap: 12px;
+                                        padding: 10px 14px;
+                                        background: transparent;
+                                        border: none;
+                                        border-radius: 8px;
+                                        font-family: 'Inter', sans-serif;
+                                        font-size: 14px;
+                                        font-weight: 500;
+                                        color: #0f172a;
+                                        cursor: pointer;
+                                        text-align: left;
+                                        transition: background 0.15s ease;
+                                    "
+                                    onmouseover="this.style.background='#f8fafc'"
+                                    onmouseout="this.style.background='transparent'"
+                                >
+                                    <i
+                                        class="fa-solid fa-arrow-right-from-bracket"
+                                        style="font-size: 15px; color: #1e293b"
+                                    ></i>
+                                    <span>Cerrar sesión</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -3996,6 +4048,7 @@
                                             font-weight: 700;
                                             padding: 4px 10px;
                                             border-radius: 12px;
+                                            text-transform: uppercase;
                                             text-transform: uppercase;
                                             white-space: nowrap;
                                             flex-shrink: 0;
@@ -9643,4 +9696,84 @@
                     data-field="acciones"
                 ></div></div></template
     ></body>
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        // ==================== 1. CHAT MÓVIL ====================
+        const chatSection = document.getElementById("chat-section");
+        const convList = document.getElementById("chat-conversation-list");
+        const msgContainer = document.getElementById("chat-messages-container");
+
+        if (chatSection && convList && msgContainer) {
+            let listPanel = convList;
+            let msgPanel = msgContainer;
+            while (listPanel.parentElement && listPanel.parentElement !== chatSection) {
+                if (listPanel.parentElement.contains(msgContainer)) break;
+                listPanel = listPanel.parentElement;
+            }
+            while (msgPanel.parentElement && msgPanel.parentElement !== listPanel.parentElement) {
+                msgPanel = msgPanel.parentElement;
+            }
+
+            const layoutWrapper = listPanel.parentElement;
+            if (layoutWrapper && listPanel !== msgPanel) {
+                layoutWrapper.classList.add("chat-layout-wrapper");
+                listPanel.classList.add("chat-list-panel");
+                msgPanel.classList.add("chat-messages-panel");
+            }
+
+            const chatHeader = msgPanel.firstElementChild;
+            if (chatHeader && !chatHeader.querySelector(".chat-mobile-back-btn")) {
+                const backBtn = document.createElement("button");
+                backBtn.type = "button";
+                backBtn.className = "chat-mobile-back-btn";
+                backBtn.setAttribute("aria-label", "Volver a conversaciones");
+                backBtn.innerHTML = '<i class="fas fa-arrow-left"></i>';
+                backBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    chatSection.classList.remove("mobile-chat-open");
+                });
+                chatHeader.insertBefore(backBtn, chatHeader.firstChild);
+            }
+
+            convList.addEventListener("click", (e) => {
+                if (e.target.closest(".chat-conv-item") || e.target !== convList) {
+                    chatSection.classList.add("mobile-chat-open");
+                }
+            });
+
+            document.querySelectorAll('[data-section="chat-section"], [onclick*="chat-section"]').forEach((nav) => {
+                nav.addEventListener("click", () => {
+                    chatSection.classList.remove("mobile-chat-open");
+                });
+            });
+        }
+
+        // ==================== 2. REPORTES: TARJETAS Y ETIQUETAS DE TABLA ====================
+        const reportesSection = document.getElementById("reportes-section");
+        if (reportesSection) {
+            reportesSection.querySelectorAll("div").forEach((div) => {
+                const style = div.getAttribute("style") || "";
+                if (style.includes("grid-template-columns") && style.includes("repeat(3")) {
+                    div.classList.add("reportes-cards-grid");
+                }
+            });
+
+            const etiquetas = ["Fecha", "Mentor", "Tema", "Asistentes", "Duración"];
+            const asignarEtiquetasTabla = () => {
+                reportesSection.querySelectorAll("tbody tr").forEach((tr) => {
+                    const celdas = tr.querySelectorAll("td");
+                    if (celdas.length > 1) {
+                        celdas.forEach((td, i) => {
+                            if (etiquetas[i] && td.getAttribute("data-label") !== etiquetas[i]) {
+                                td.setAttribute("data-label", etiquetas[i]);
+                            }
+                        });
+                    }
+                });
+            };
+            asignarEtiquetasTabla();
+            new MutationObserver(asignarEtiquetasTabla).observe(reportesSection, { childList: true, subtree: true });
+        }
+    });
+</script>
 </html>

@@ -31,6 +31,47 @@ const dateText = (value) =>
         : "—";
 const empty = (text) =>
     `<div style="padding:24px;text-align:center;color:var(--text-muted);grid-column:1/-1;">${escapeHtml(text)}</div>`;
+
+function createReferenceId() {
+    try {
+        if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+            return crypto.randomUUID();
+        }
+    } catch {}
+    try {
+        if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+            const bytes = new Uint8Array(16);
+            crypto.getRandomValues(bytes);
+            bytes[6] = (bytes[6] & 0x0f) | 0x40;
+            bytes[8] = (bytes[8] & 0x3f) | 0x80;
+            const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+            return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+        }
+    } catch {}
+    return `ref-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+}
+
+function showPopoverSafe(menu) {
+    if (!menu) return;
+    if (typeof menu.showPopover === "function") {
+        try {
+            menu.showPopover();
+            return;
+        } catch {}
+    }
+    menu.style.display = "block";
+}
+
+function hidePopoverSafe(menu) {
+    if (!menu) return;
+    if (typeof menu.hidePopover === "function") {
+        try {
+            menu.hidePopover();
+        } catch {}
+    }
+    menu.style.display = "none";
+}
+
 let csrf = "",
     currentUser = null,
     mySubjects = [],
@@ -45,10 +86,61 @@ let selectedStudent = null,
     selectedStars = 0,
     selectedCancellation = null,
     pastSessions = false;
+let reschedulingSessionId = null,
+    reschedulingSessionRow = null;
 let savedSchedule = [],
     selectedSlots = new Set(),
     poll = null,
+    pollSessionsBusy = false,
     statusTimer = null;
+
+// Control de cierre de sesión automático por inactividad (10 minutos = 600,000 ms)
+const INACTIVITY_LIMIT_MS = 10 * 60 * 1000;
+let inactivityTimer = null;
+let inactivityEventsBound = false;
+
+function stopInactivityWatch() {
+    clearTimeout(inactivityTimer);
+    inactivityTimer = null;
+}
+
+async function handleInactivityLogout() {
+    if (!currentUser) return;
+    stopInactivityWatch();
+    try {
+        await api("/auth/logout", "POST");
+    } catch {}
+    loggedOut();
+    try {
+        await token();
+    } catch {}
+    notify("Tu sesión se cerró automáticamente por 10 minutos de inactividad.", true);
+}
+
+function resetInactivityTimer() {
+    if (!currentUser) return;
+    clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(() => {
+        handleInactivityLogout();
+    }, INACTIVITY_LIMIT_MS);
+}
+
+function startInactivityWatch() {
+    if (!inactivityEventsBound) {
+        inactivityEventsBound = true;
+        for (const evt of ["mousemove", "mousedown", "keydown", "scroll", "touchstart", "click"]) {
+            document.addEventListener(evt, resetInactivityTimer, { passive: true });
+        }
+    }
+    resetInactivityTimer();
+}
+
+function closeTopbarProfileMenu() {
+    const dropdown = $("topbar-profile-dropdown");
+    const avatar = $("topbar-user-avatar");
+    if (dropdown) dropdown.style.display = "none";
+    if (avatar) avatar.setAttribute("aria-expanded", "false");
+}
 
 function formatExpirationDate(dateObj) {
     if (!dateObj || Number.isNaN(dateObj.getTime())) return "Sin vencimiento";
@@ -233,6 +325,8 @@ function setupEnterActions() {
         "reset-password": "btn-reset",
         "verify-code": "btn-verify",
         "perfil-nombre": "btn-save-profile",
+        "teach-subject": "btn-add-teach",
+        "learn-subject": "btn-add-learn",
         "chat-input-mensaje": "btn-chat-enviar",
     };
     for (const [id, action] of Object.entries(actions))
@@ -255,6 +349,20 @@ function setupEnterActions() {
 let dialogResolve = null,
     dialogIsLink = false,
     dialogFocus = null;
+function closeDialogSafe(dialog) {
+    if (!dialog) return;
+    if (typeof dialog.close === "function") {
+        try {
+            if (dialog.open) {
+                dialog.close();
+                return;
+            }
+        } catch {}
+    }
+    dialog.removeAttribute("open");
+    dialog.style.display = "none";
+    dialog.dispatchEvent(new Event("close"));
+}
 function appDialog({ title, description, link = false, value = "", confirm = "Confirmar" }) {
     if (dialogResolve) return Promise.resolve(null);
     dialogIsLink = link;
@@ -267,22 +375,35 @@ function appDialog({ title, description, link = false, value = "", confirm = "Co
     $("app-dialog-input").value = value;
     setText("app-dialog-error", "");
     return new Promise((resolve) => {
+        const dialog = $("app-dialog");
         dialogResolve = resolve;
-        $("app-dialog").showModal();
+        if (typeof dialog.showModal === "function") {
+            try {
+                dialog.showModal();
+            } catch {
+                dialog.setAttribute("open", "");
+                dialog.style.display = "block";
+            }
+        } else {
+            dialog.setAttribute("open", "");
+            dialog.style.display = "block";
+        }
         (link ? $("app-dialog-input") : $("app-dialog-cancel")).focus();
     });
 }
 function setupAppDialog() {
     const dialog = $("app-dialog");
+    if (!dialog) return;
     for (const id of ["app-dialog-close", "app-dialog-cancel"])
-        $(id).addEventListener("click", () => dialog.close());
+        $(id)?.addEventListener("click", () => closeDialogSafe(dialog));
     dialog.addEventListener("close", () => {
+        dialog.style.display = "none";
         const resolve = dialogResolve;
         dialogResolve = null;
         resolve?.(null);
         if (dialogFocus?.isConnected) dialogFocus.focus();
     });
-    $("app-dialog-form").addEventListener("submit", (event) => {
+    $("app-dialog-form")?.addEventListener("submit", (event) => {
         event.preventDefault();
         let value = true;
         if (dialogIsLink) {
@@ -299,7 +420,7 @@ function setupAppDialog() {
         }
         const resolve = dialogResolve;
         dialogResolve = null;
-        dialog.close();
+        closeDialogSafe(dialog);
         resolve?.(value);
     });
 }
@@ -316,7 +437,10 @@ async function token() {
     csrf = (await api("/auth/csrf")).token;
 }
 function loggedOut() {
+    stopInactivityWatch();
+    closeTopbarProfileMenu();
     clearInterval(poll);
+    pollSessionsBusy = false;
     currentUser = null;
     mySubjects = [];
     sessions = [];
@@ -327,6 +451,8 @@ function loggedOut() {
     selectedStudent = null;
     selectedConversation = null;
     selectedRating = null;
+    reschedulingSessionId = null;
+    reschedulingSessionRow = null;
     savedSchedule = [];
     selectedSlots.clear();
     document
@@ -345,8 +471,9 @@ function profile() {
     setText("card-carrera", u.carrera);
     setText("card-ciclo", u.ciclo);
     setText("dash-greeting", `Bienvenido de nuevo, ${u.nombre.split(" ")[0]}`);
-    for (const id of ["sidebar-avatar", "card-avatar", "form-avatar"]) {
+    for (const id of ["sidebar-avatar", "card-avatar", "form-avatar", "topbar-user-avatar"]) {
         const e = $(id);
+        if (!e) continue;
         e.textContent = initials(u.nombre);
         if (u.foto_url) {
             const image = document.createElement("img");
@@ -425,6 +552,7 @@ async function sendVerificationEmail() {
 async function signedIn(result) {
     if (result.requiere_verificacion) {
         const request = ++verificationRequest;
+        stopInactivityWatch();
         clearInterval(poll);
         currentUser = null;
         csrf = result.csrf;
@@ -450,12 +578,14 @@ async function signedIn(result) {
         } else {
             setText("verify-delivery-status", "Enviando código…");
             $("btn-resend-code").disabled = true;
-            // Dejar que el navegador dibuje la pantalla antes de solicitar el envío.
-            requestAnimationFrame(() =>
-                requestAnimationFrame(() => {
-                    if (request === verificationRequest) sendVerificationEmail();
-                }),
-            );
+            const triggerSend = () => {
+                if (request === verificationRequest) sendVerificationEmail();
+            };
+            if (typeof requestAnimationFrame === "function") {
+                requestAnimationFrame(() => requestAnimationFrame(triggerSend));
+            } else {
+                setTimeout(triggerSend, 0);
+            }
         }
         return;
     }
@@ -464,6 +594,7 @@ async function signedIn(result) {
     currentUser = result.estudiante;
     csrf = result.csrf;
     profile();
+    startInactivityWatch();
     $("login-password").value = "";
     $("reg-password").value = "";
     show("auth-wrapper", false);
@@ -482,11 +613,25 @@ async function signedIn(result) {
     }
 
     clearInterval(poll);
-    poll = setInterval(() => {
+    pollSessionsBusy = false;
+    poll = setInterval(async () => {
         if (!currentUser || document.hidden) return;
         if (document.querySelector("#chat-section.active") && selectedConversation)
             loadMessages().catch((e) => notify(e.message, true));
         loadNotifications().catch(() => {});
+        if (
+            !pollSessionsBusy &&
+            (document.querySelector("#mis-sesiones-section.active") ||
+                document.querySelector("#inicio-section.active"))
+        ) {
+            pollSessionsBusy = true;
+            try {
+                await loadSessions();
+            } catch {}
+            finally {
+                pollSessionsBusy = false;
+            }
+        }
     }, 8000);
 }
 async function refresh() {
@@ -513,23 +658,45 @@ async function loadCycle() {
             (e) => (e.textContent = "Campus virtual" + (rows.length ? " · " + rows[0].nombre : "")),
         );
 }
+const normalizeText = (value) =>
+    String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .toLocaleLowerCase();
 const subjectSelectors = ["teach-subject", "learn-subject", "select-filtro-curso-reporte"];
 const subjectRequests = {},
     subjectOptions = {};
 function subjectValue(prefix) {
     const input = $(prefix + "-subject");
-    const row = (subjectOptions[prefix + "-subject"] || []).find(
-        (row) => row.nombre.toLocaleLowerCase() === input.value.trim().toLocaleLowerCase(),
-    );
-    if (!row) throw new Error("Selecciona una materia registrada de la lista.");
-    return row.id;
+    const typed = normalizeText(input.value);
+    const options = subjectOptions[prefix + "-subject"] || [];
+    const exact = options.find((row) => normalizeText(row.nombre) === typed);
+    if (exact) return exact.id;
+    const matches = options.filter((row) => normalizeText(row.nombre).includes(typed));
+    if (matches.length === 1) {
+        input.value = matches[0].nombre;
+        return matches[0].id;
+    }
+    throw new Error("Escribe o selecciona una materia registrada de la lista.");
+}
+function renderSubjectDatalist(id) {
+    const input = $(id);
+    const list = $(id + "-list");
+    if (!input || !list) return;
+    const query = normalizeText(input.value);
+    const all = subjectOptions[id] || [];
+    const filtered = query
+        ? all.filter((row) => normalizeText(row.nombre).includes(query))
+        : all;
+    list.replaceChildren(...filtered.map((row) => new Option(row.nombre, row.nombre)));
 }
 async function loadSubjectPage(id) {
     const request = (subjectRequests[id] || 0) + 1;
     subjectRequests[id] = request;
     const input = $(id),
         isInput = input.tagName === "INPUT";
-    const query = isInput ? input.value : $(id + "-search")?.value || "";
+    const query = isInput ? "" : $(id + "-search")?.value || "";
     const selected = input.value;
     const result = await api("/materias?q=" + encodeURIComponent(query) + "&pagina=1");
     for (let page = 2; result.items.length < result.total; page++) {
@@ -540,12 +707,7 @@ async function loadSubjectPage(id) {
     if (subjectRequests[id] !== request) return;
     subjectOptions[id] = result.items;
     if (isInput) {
-        $(id + "-list").replaceChildren(
-            ...result.items.map((row) => new Option(row.nombre, row.nombre)),
-        );
-        input.placeholder = result.items.length
-            ? "Escribe o selecciona una materia..."
-            : "No se encontraron materias";
+        renderSubjectDatalist(id);
     } else {
         input.replaceChildren(
             new Option("Todos los cursos", ""),
@@ -563,6 +725,24 @@ function setupSubjectSearch() {
     for (const id of subjectSelectors) {
         const input = $(id).tagName === "INPUT" ? $(id) : $(id + "-search");
         if (!input) continue;
+        if ($(id).tagName === "INPUT") {
+            input.setAttribute("autocomplete", "off");
+            input.addEventListener("input", () => {
+                if (!(subjectOptions[id] || []).length) {
+                    loadSubjectPage(id).catch((error) => notify(error.message, true));
+                    return;
+                }
+                renderSubjectDatalist(id);
+            });
+            input.addEventListener("focus", () => {
+                if (!(subjectOptions[id] || []).length) {
+                    loadSubjectPage(id).catch((error) => notify(error.message, true));
+                } else {
+                    renderSubjectDatalist(id);
+                }
+            });
+            continue;
+        }
         let timer;
         input.addEventListener("input", () => {
             subjectRequests[id] = (subjectRequests[id] || 0) + 1;
@@ -656,11 +836,26 @@ async function loadHours() {
             : Number(ratings.calificacion_promedio).toFixed(1);
     document.querySelector('[data-metric="3"]').textContent = ratings.companeros;
 }
+function isExpiredSession(s) {
+    if (["COMPLETADA", "CANCELADA"].includes(s.estado)) return true;
+    if (s.estado === "EN_CURSO") return false;
+    const start = new Date(s.fecha_hora).getTime();
+    if (Number.isNaN(start)) return false;
+    const durationMs = Number(s.duracion_programada_min || 0) * 60000;
+    const end = durationMs > 0 ? start + durationMs : start;
+    return end < Date.now();
+}
+function sessionDisplayState(s) {
+    if (!["COMPLETADA", "CANCELADA", "EN_CURSO"].includes(s.estado) && isExpiredSession(s)) {
+        return "VENCIDA";
+    }
+    return s.estado;
+}
 async function loadSessions() {
     sessions = await api("/sesiones");
     renderSessions();
     const next = sessions
-        .filter((s) => ["CONFIRMADA", "PROPUESTA", "EN_CURSO"].includes(s.estado))
+        .filter((s) => ["CONFIRMADA", "PROPUESTA", "EN_CURSO"].includes(s.estado) && !isExpiredSession(s))
         .sort((a, b) => new Date(a.fecha_hora) - new Date(b.fecha_hora))[0];
     setText("dashboard-next-subject", next ? next.materia : "Sin próximas sesiones");
     setText(
@@ -696,25 +891,31 @@ async function loadSessions() {
                   .slice(0, 3)
                   .map(
                       (s) =>
-                          `<div class="session-item"><div class="session-avatar" style="background:var(--primary);">${escapeHtml(initials(s.companero))}</div><div class="session-info"><h4>${escapeHtml(s.companero)}</h4><p>${escapeHtml(s.materia)} · ${escapeHtml(dateText(s.fecha_hora))}</p></div><div class="session-status"><div class="badge badge-success">${escapeHtml(s.estado)}</div></div></div>`,
+                          `<div class="session-item"><div class="session-avatar" style="background:var(--primary);">${escapeHtml(initials(s.companero))}</div><div class="session-info"><h4>${escapeHtml(s.companero)}</h4><p>${escapeHtml(s.materia)} · ${escapeHtml(dateText(s.fecha_hora))}</p></div><div class="session-status"><div class="badge badge-success">${escapeHtml(sessionDisplayState(s))}</div></div></div>`,
                   )
                   .join("")
             : '<div class="live-empty">' + empty("Todavía no tienes sesiones.") + "</div>",
     );
 }
 function sessionCard(s) {
+    const expired = isExpiredSession(s);
     const button = (action, label) =>
         `<button class="btn btn-primary" data-session="${s.id}" data-session-action="${action}">${label}</button>`;
     let actions = "";
-    if (s.estado === "PROPUESTA" && s.receptor_id === currentUser.id)
-        actions += button("aceptar", "Aceptar");
-    if (["PROPUESTA", "CONFIRMADA"].includes(s.estado))
-        actions += button("cancelar", "Cancelar") + button("enlace", "Añadir enlace");
-    if (
-        ["CONFIRMADA", "EN_CURSO"].includes(s.estado) &&
-        s.enlace_videollamada?.startsWith("https://")
-    )
-        actions += button("iniciar", "Iniciar reunión");
+    if (!expired) {
+        if (s.estado === "PROPUESTA" && s.receptor_id === currentUser.id)
+            actions += button("aceptar", "Aceptar");
+        if (["PROPUESTA", "CONFIRMADA"].includes(s.estado))
+            actions +=
+                button("reprogramar", "Reprogramar") +
+                button("cancelar", "Cancelar") +
+                button("enlace", "Añadir enlace");
+        if (
+            ["CONFIRMADA", "EN_CURSO"].includes(s.estado) &&
+            s.enlace_videollamada?.startsWith("https://")
+        )
+            actions += button("iniciar", "Iniciar reunión");
+    }
     if (s.estado === "EN_CURSO")
         actions += button(
             "finalizar",
@@ -729,7 +930,7 @@ function sessionCard(s) {
         card.querySelector(`[data-field="${name}"]`).textContent = value;
     };
     fill("materia", s.materia);
-    fill("estado", s.estado);
+    fill("estado", sessionDisplayState(s));
     fill("companero", s.companero);
     fill(
         "fecha",
@@ -757,9 +958,7 @@ function sessionCard(s) {
 }
 function renderSessions() {
     const rows = sessions.filter((s) =>
-        pastSessions
-            ? ["COMPLETADA", "CANCELADA"].includes(s.estado)
-            : !["COMPLETADA", "CANCELADA"].includes(s.estado),
+        pastSessions ? isExpiredSession(s) : !isExpiredSession(s),
     );
     $("historial-container").innerHTML = rows.length
         ? rows.map(sessionCard).join("")
@@ -814,7 +1013,20 @@ async function otherProfile(id) {
         "modal-comp-carrera",
         [selectedStudent.carrera, selectedStudent.ciclo].filter(Boolean).join(" · "),
     );
-    setText("modal-comp-avatar", initials(selectedStudent.nombre));
+    const avatarEl = $("modal-comp-avatar");
+    if (avatarEl) {
+        avatarEl.textContent = initials(selectedStudent.nombre);
+        if (selectedStudent.foto_url) {
+            const image = document.createElement("img");
+            image.src =
+                Number(id) === Number(currentUser?.id)
+                    ? "/api/perfil/foto?v=" + Date.now()
+                    : selectedStudent.foto_url;
+            image.alt = `Foto de ${selectedStudent.nombre}`;
+            image.style.cssText = "width:100%;height:100%;object-fit:cover;border-radius:inherit;";
+            avatarEl.replaceChildren(image);
+        }
+    }
     setText(
         "modal-comp-bio",
         selectedStudent.bio || "Este estudiante todavía no agregó una presentación.",
@@ -881,7 +1093,8 @@ function fillSessionMentor() {
                 new Option(
                     id === String(currentUser.id)
                         ? "Yo enseñaré"
-                        : selectedStudent.nombre + " enseñará",
+                        : (selectedStudent?.nombre || reschedulingSessionRow?.companero || "Compañero") +
+                          " enseñará",
                     id,
                 ),
         ),
@@ -894,6 +1107,8 @@ function fillSessionSubjects() {
         query = ($("sesion-materia-search")?.value || "").trim().toLocaleLowerCase();
     const rows = sessionMatches.filter((m) => m.nombre.toLocaleLowerCase().includes(query));
     const unique = [...new Map(rows.map((m) => [m.id + ":" + m.mentor_id, m])).values()];
+    const peerLabel =
+        selectedStudent?.nombre || reschedulingSessionRow?.companero || "Compañero";
     $("sesion-materia").replaceChildren(
         ...(unique.length
             ? unique.map((m) => {
@@ -902,7 +1117,7 @@ function fillSessionSubjects() {
                           " · " +
                           (Number(m.mentor_id) === Number(currentUser.id)
                               ? "Tú enseñas"
-                              : selectedStudent.nombre + " enseña"),
+                              : peerLabel + " enseña"),
                       m.id,
                   );
                   option.dataset.mentorId = String(m.mentor_id);
@@ -976,15 +1191,66 @@ function validateSessionTime() {
         throw new Error("La sesión completa debe estar dentro de la disponibilidad de ambos.");
     const begin = new Date(date + "T" + time),
         end = new Date(begin.getTime() + duration * 60000);
-    if (begin <= new Date()) throw new Error("Selecciona una fecha futura.");
+    const minAllowed = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    if (begin <= minAllowed)
+        throw new Error("Programa o reprograma la sesión con más de 24 horas de anticipación.");
     if (
         sessionBusy.some((s) => {
+            if (reschedulingSessionId && Number(s.id) === Number(reschedulingSessionId)) return false;
             const a = new Date(s.fecha_hora),
                 b = new Date(a.getTime() + Number(s.duracion_programada_min) * 60000);
             return a < end && b > begin;
         })
     )
         throw new Error("Ya tienes otra sesión en ese horario.");
+}
+async function openRescheduleModal(sessionId) {
+    const row = sessions.find((s) => Number(s.id) === Number(sessionId));
+    if (!row) return;
+    const peerId =
+        Number(row.proponente_id) === Number(currentUser.id)
+            ? row.receptor_id
+            : row.proponente_id;
+    const [matches, mine, other, busy] = await Promise.all([
+        api("/estudiantes/" + peerId + "/coincidencias"),
+        api("/perfil/horario"),
+        api("/estudiantes/" + peerId),
+        api("/sesiones"),
+    ]);
+    reschedulingSessionId = Number(row.id);
+    reschedulingSessionRow = row;
+    sessionMatches = matches.filter((m) => Number(m.id) === Number(row.materia_id));
+    sessionAvailability = [mine, other.horario];
+    sessionBusy = busy.filter((s) =>
+        ["PROPUESTA", "CONFIRMADA", "EN_CURSO"].includes(s.estado),
+    );
+    if ($("sesion-materia-search")) $("sesion-materia-search").value = "";
+    const minDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    $("sesion-fecha").value = "";
+    $("sesion-hora").value = "";
+    $("sesion-hora").disabled = true;
+    $("sesion-fecha").min = [
+        minDate.getFullYear(),
+        String(minDate.getMonth() + 1).padStart(2, "0"),
+        String(minDate.getDate()).padStart(2, "0"),
+    ].join("-");
+    fillSessionSubjects();
+    $("sesion-materia").value = String(row.materia_id);
+    $("sesion-materia").disabled = true;
+    $("sesion-mentor").value = String(row.mentor_id || currentUser.id);
+    $("sesion-mentor").disabled = true;
+    const hours = Math.max(
+        1,
+        Math.min(8, Math.round(Number(row.duracion_programada_min || 60) / 60)),
+    );
+    $("sesion-duracion").value = String(hours);
+    commonAvailability();
+    setText(
+        "session-recipient-label",
+        "Reprogramar sesión de " + row.materia + " con " + row.companero,
+    );
+    setText("btn-enviar-propuesta-sesion", "Confirmar reprogramación");
+    show("modal-sesion", true, "flex");
 }
 window.proponerSesionDesdeCompanero = async () => {
     if (!selectedStudent) return;
@@ -995,6 +1261,11 @@ window.proponerSesionDesdeCompanero = async () => {
             api("/estudiantes/" + selectedStudent.id),
             api("/sesiones"),
         ]);
+        reschedulingSessionId = null;
+        reschedulingSessionRow = null;
+        $("sesion-materia").disabled = false;
+        $("sesion-mentor").disabled = false;
+        setText("btn-enviar-propuesta-sesion", "Enviar propuesta");
         sessionMatches = matches;
         sessionAvailability = [mine, other.horario];
         sessionBusy = busy.filter((s) =>
@@ -1111,7 +1382,7 @@ function chatPeerId() {
         : selectedConversation.estudiante_a;
 }
 async function proposeFromChat() {
-    $("chat-peer-menu").hidePopover();
+    hidePopoverSafe($("chat-peer-menu"));
     const peer = await api("/estudiantes/" + chatPeerId());
     selectedStudent = peer.perfil;
     await window.proponerSesionDesdeCompanero();
@@ -1119,13 +1390,16 @@ async function proposeFromChat() {
 function openChatMenu(event) {
     if (!selectedConversation) return;
     event?.preventDefault?.();
-    const anchor = $("chat-peer-profile").getBoundingClientRect(),
+    const anchor = $("chat-peer-profile")?.getBoundingClientRect() || { left: 16, bottom: 80 },
         menu = $("chat-peer-menu");
+    if (!menu) return;
+    menu.style.position = "fixed";
+    menu.style.zIndex = "9999";
     menu.style.left =
         Math.max(8, Math.min(event?.clientX || anchor.left, window.innerWidth - 220)) + "px";
     menu.style.top =
         Math.max(8, Math.min(event?.clientY || anchor.bottom, window.innerHeight - 110)) + "px";
-    menu.showPopover();
+    showPopoverSafe(menu);
 }
 async function sendMessage() {
     if (!selectedConversation) throw new Error("Selecciona una conversación.");
@@ -1316,7 +1590,7 @@ function openPlan(id) {
     show("modal-contratacion-plan", true, "flex");
 }
 function openDemoPayment() {
-    paymentReference = crypto.randomUUID();
+    paymentReference = createReferenceId();
     setText("rf36-exito-comprobante", "—");
     $("rf36-input-titular").value = currentUser?.nombre || "";
     if (!selectedPlan) throw new Error("Selecciona un plan.");
@@ -1350,7 +1624,7 @@ async function paymentDemo(scenario = "APROBADO") {
     try {
         const result = await api("/pagos/prueba", "POST", {
             plan_id: selectedPlan.id, escenario: scenario,
-            referencia: paymentReference || (paymentReference = crypto.randomUUID()),
+            referencia: paymentReference || (paymentReference = createReferenceId()),
             tarjeta_prueba: card, renovar: true,
         });
         if (result.estado === "APROBADO") {
@@ -1371,7 +1645,7 @@ async function paymentDemo(scenario = "APROBADO") {
                     : "Plan Pro-Ciclo activado correctamente.",
             );
         } else {
-            paymentReference = crypto.randomUUID();
+            paymentReference = createReferenceId();
             setText("rf36-banner-error-title", result.estado === "TIMEOUT" ? "Tiempo de espera agotado" : "Pago rechazado");
             setText("rf36-banner-error-desc", result.mensaje);
             show("rf36-banner-error", true, "flex");
@@ -1509,6 +1783,31 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (sidebar?.classList.contains("open") && !sidebar.contains(e.target) && e.target.id !== "btn-mobile-menu") {
             sidebar.classList.remove("open");
         }
+        const profileMenu = document.querySelector(".topbar-profile-menu");
+        if (profileMenu && !profileMenu.contains(e.target)) {
+            closeTopbarProfileMenu();
+        }
+    });
+
+    // Menú desplegable de perfil en el topbar (Cerrar sesión)
+    const toggleTopbarProfileMenu = (e) => {
+        e.stopPropagation();
+        const dropdown = $("topbar-profile-dropdown");
+        const avatar = $("topbar-user-avatar");
+        if (!dropdown || !avatar) return;
+        const willOpen = dropdown.style.display !== "block";
+        dropdown.style.display = willOpen ? "block" : "none";
+        avatar.setAttribute("aria-expanded", String(willOpen));
+    };
+    $("topbar-user-avatar")?.addEventListener("click", toggleTopbarProfileMenu);
+    $("topbar-user-avatar")?.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            toggleTopbarProfileMenu(e);
+        }
+    });
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeTopbarProfileMenu();
     });
 
     // 3. Botón quitar foto de perfil
@@ -1562,11 +1861,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         signedIn(await api("/auth/verificar", "POST", { codigo: $("verify-code").value.trim() })),
     );
     on("btn-resend-code", sendVerificationEmail);
-    on("btn-logout", async () => {
+    const executeLogout = async () => {
+        closeTopbarProfileMenu();
         await api("/auth/logout", "POST");
         loggedOut();
         await token();
-    });
+    };
+    on("btn-logout", executeLogout);
+    on("btn-dropdown-logout", executeLogout);
     on("btn-recover", async () => {
         const result = await api("/auth/recuperar", "POST", { correo: $("recover-email").value });
         notify(result.mensaje);
@@ -1752,6 +2054,21 @@ document.addEventListener("DOMContentLoaded", async () => {
         $(id).addEventListener("change", commonAvailability);
     on("btn-enviar-propuesta-sesion", async () => {
         validateSessionTime();
+        if (reschedulingSessionId) {
+            await api(`/sesiones/${reschedulingSessionId}/reprogramar`, "POST", {
+                fecha_hora: $("sesion-fecha").value + "T" + $("sesion-hora").value,
+                duracion_programada_min: Number($("sesion-duracion").value) * 60,
+            });
+            reschedulingSessionId = null;
+            reschedulingSessionRow = null;
+            $("sesion-materia").disabled = false;
+            $("sesion-mentor").disabled = false;
+            setText("btn-enviar-propuesta-sesion", "Enviar propuesta");
+            show("modal-sesion", false);
+            await loadSessions();
+            notify("Sesión reprogramada correctamente.");
+            return;
+        }
         if (!selectedStudent) throw new Error("Selecciona un compañero.");
         await api("/sesiones", "POST", {
             receptor_id: selectedStudent.id,
@@ -1774,7 +2091,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         ["btn-cancelar-oferta", "modal-contratacion-plan"],
         ["btn-cancelar-proceso-contratacion", "modal-contratacion-plan"],
     ])
-        on(button, () => show(modal, false));
+        on(button, () => {
+            if (modal === "modal-sesion") {
+                reschedulingSessionId = null;
+                reschedulingSessionRow = null;
+                $("sesion-materia").disabled = false;
+                $("sesion-mentor").disabled = false;
+                setText("btn-enviar-propuesta-sesion", "Enviar propuesta");
+            }
+            show(modal, false);
+        });
     on("btn-confirmar-cancelacion", async () => {
         await api(`/sesiones/${selectedCancellation}/cancelar`, "POST", {
             motivo: $("cancelacion-motivo").value,
@@ -1828,7 +2154,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     on("btn-chat-propose", proposeFromChat);
     on("chat-menu-propose", proposeFromChat);
     const viewChatPeer = async () => {
-        $("chat-peer-menu").hidePopover();
+        hidePopoverSafe($("chat-peer-menu"));
         await otherProfile(chatPeerId());
     };
     on("chat-peer-profile", viewChatPeer);
@@ -1894,7 +2220,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             "change",
         );
     }
- const planTabs = [
+    const planTabs = [
         ["tab-btn-mi-plan", "tab-content-mi-plan"],
         ["tab-btn-gestion-sub", "tab-content-gestion-sub"],
         ["tab-btn-comprobantes", "tab-content-comprobantes"],
@@ -2005,88 +2331,110 @@ document.addEventListener("DOMContentLoaded", async () => {
                 "[data-remove-subject],[data-remove-document],[data-student],[data-conversation],[data-session-action],[data-read],[data-go-sessions],[data-slot],[data-plan],[data-receipt]",
             );
             if (!el) return;
-            if (el.dataset.removeSubject) {
-                await api("/perfil/materias/" + el.dataset.removeSubject, "DELETE");
-                await loadMySubjects();
-            } else if (el.dataset.removeDocument) {
-                if (
-                    await appDialog({
-                        title: "Eliminar documento",
-                        description: "¿Quieres eliminar este documento de tu perfil?",
-                        confirm: "Eliminar documento",
-                    })
-                ) {
-                    await api("/documentos/" + el.dataset.removeDocument, "DELETE");
-                    await loadDocuments();
+            const actionBtn = el.tagName === "BUTTON" ? el : el.closest("button");
+            const prevDisabled = actionBtn ? actionBtn.disabled : false;
+            if (prevDisabled) return;
+            if (actionBtn) actionBtn.disabled = true;
+            try {
+                if (el.dataset.removeSubject) {
+                    await api("/perfil/materias/" + el.dataset.removeSubject, "DELETE");
+                    await loadMySubjects();
+                } else if (el.dataset.removeDocument) {
+                    if (
+                        await appDialog({
+                            title: "Eliminar documento",
+                            description: "¿Quieres eliminar este documento de tu perfil?",
+                            confirm: "Eliminar documento",
+                        })
+                    ) {
+                        await api("/documentos/" + el.dataset.removeDocument, "DELETE");
+                        await loadDocuments();
+                    }
+                } else if (el.dataset.student) await otherProfile(el.dataset.student);
+                else if (el.dataset.conversation) await openConversation(el.dataset.conversation);
+                else if (el.dataset.read) {
+                    await api("/notificaciones/" + el.dataset.read + "/leer", "POST");
+                    await loadNotifications();
+                } else if (el.hasAttribute("data-go-sessions")) await navigate("mis-sesiones-section");
+                else if (el.dataset.slot) {
+                    selectedSlots.has(el.dataset.slot)
+                        ? selectedSlots.delete(el.dataset.slot)
+                        : selectedSlots.add(el.dataset.slot);
+                    drawSchedule();
+                } else if (el.dataset.plan) openPlan(el.dataset.plan);
+                else if (el.dataset.receipt) {
+                    await downloadDocument("/api/pagos/"+el.dataset.receipt+"/comprobante/pdf","Comprobante_StudyMatch.pdf");
+                } else if (el.dataset.sessionAction) {
+                    const id = Number(el.dataset.session),
+                        action = el.dataset.sessionAction,
+                        row = sessions.find((s) => s.id === id);
+                    if (action === "reprogramar") {
+                        await openRescheduleModal(id);
+                        return;
+                    }
+                    if (action === "calificar") {
+                        selectedRating = id;
+                        selectedStars = 0;
+                        setText("calif-nombre-companero", row.companero);
+                        $("calif-comentario-input").value = row.comentario || "";
+                        show("seccion-comentario", true);
+                        show("modal-calificacion", true, "flex");
+                        document
+                            .querySelectorAll(".star-item")
+                            .forEach((s) => (s.style.color = "#cbd5e1"));
+                        setText("star-label", "Selecciona una puntuación");
+                        return;
+                    }
+                    if (action === "cancelar") {
+                        selectedCancellation = id;
+                        show("modal-cancelacion", true, "flex");
+                        return;
+                    }
+                    const data = {};
+                    if (action === "enlace") {
+                        const link = await appDialog({
+                            title: "Añadir enlace",
+                            description:
+                                "Pega el enlace de tu reunión de Zoom, Meet u otra plataforma.",
+                            link: true,
+                            value: row.enlace_videollamada || "",
+                            confirm: "Guardar enlace",
+                        });
+                        if (!link) return;
+                        data.enlace = link;
+                    }
+                    let updated;
+                    try { updated=await api(`/sesiones/${id}/${action}`,"POST",data); }
+                    catch(error){
+                        if(action!=="finalizar" || !error.message.includes("menor de cinco minutos"))throw error;
+                        if(!await appDialog({title:"Sesión breve",description:"La duración es menor de cinco minutos. ¿Confirmas la finalización?",confirm:"Confirmar finalización"}))return;
+                        updated=await api(`/sesiones/${id}/${action}`,"POST",{confirmar_duracion_corta:true});
+                    }
+                    if (action === "iniciar") {
+                        const targetUrl = updated?.enlace_videollamada || row?.enlace_videollamada;
+                        if (!targetUrl?.startsWith("https://")) {
+                            throw new Error("El enlace de videollamada no es válido.");
+                        }
+                        const nuevaPestana = window.open(targetUrl, "_blank", "noopener,noreferrer");
+                        if (!nuevaPestana) {
+                            notify(
+                                "El navegador bloqueó la pestaña nueva. Permite ventanas emergentes para abrir la clase sin salir de tu página.",
+                                true,
+                            );
+                        }
+                        return;
+                    }
+                    await loadSessions();
+                    await loadHours();
+                    await loadBadges();
+                    notify(
+                        action === "finalizar"
+                            ? "Confirmación guardada. La sesión termina cuando ambos confirman."
+                            : "Cambio guardado.",
+                    );
                 }
-            } else if (el.dataset.student) await otherProfile(el.dataset.student);
-            else if (el.dataset.conversation) await openConversation(el.dataset.conversation);
-            else if (el.dataset.read) {
-                await api("/notificaciones/" + el.dataset.read + "/leer", "POST");
-                await loadNotifications();
-            } else if (el.hasAttribute("data-go-sessions")) await navigate("mis-sesiones-section");
-            else if (el.dataset.slot) {
-                selectedSlots.has(el.dataset.slot)
-                    ? selectedSlots.delete(el.dataset.slot)
-                    : selectedSlots.add(el.dataset.slot);
-                drawSchedule();
-            } else if (el.dataset.plan) openPlan(el.dataset.plan);
-            else if (el.dataset.receipt) {
-                await downloadDocument("/api/pagos/"+el.dataset.receipt+"/comprobante/pdf","Comprobante_StudyMatch.pdf");
-            } else if (el.dataset.sessionAction) {
-                const id = Number(el.dataset.session),
-                    action = el.dataset.sessionAction,
-                    row = sessions.find((s) => s.id === id);
-                if (action === "calificar") {
-                    selectedRating = id;
-                    selectedStars = 0;
-                    setText("calif-nombre-companero", row.companero);
-                    $("calif-comentario-input").value = row.comentario || "";
-                    show("seccion-comentario", true);
-                    show("modal-calificacion", true, "flex");
-                    document
-                        .querySelectorAll(".star-item")
-                        .forEach((s) => (s.style.color = "#cbd5e1"));
-                    setText("star-label", "Selecciona una puntuación");
-                    return;
-                }
-                if (action === "cancelar") {
-                    selectedCancellation = id;
-                    show("modal-cancelacion", true, "flex");
-                    return;
-                }
-                const data = {};
-                if (action === "enlace") {
-                    const link = await appDialog({
-                        title: "Añadir enlace",
-                        description:
-                            "Pega el enlace de tu reunión de Zoom, Meet u otra plataforma.",
-                        link: true,
-                        value: row.enlace_videollamada || "",
-                        confirm: "Guardar enlace",
-                    });
-                    if (!link) return;
-                    data.enlace = link;
-                }
-                let updated;
-                try { updated=await api(`/sesiones/${id}/${action}`,"POST",data); }
-                catch(error){
-                    if(action!=="finalizar" || !error.message.includes("menor de cinco minutos"))throw error;
-                    if(!await appDialog({title:"Sesión breve",description:"La duración es menor de cinco minutos. ¿Confirmas la finalización?",confirm:"Confirmar finalización"}))return;
-                    updated=await api(`/sesiones/${id}/${action}`,"POST",{confirmar_duracion_corta:true});
-                }
-                if (action === "iniciar") {
-                    window.location.assign(updated.enlace_videollamada);
-                    return;
-                }
-                await loadSessions();
-                await loadHours();
-                await loadBadges();
-                notify(
-                    action === "finalizar"
-                        ? "Confirmación guardada. La sesión termina cuando ambos confirman."
-                        : "Cambio guardado.",
-                );
+            } finally {
+                if (actionBtn && actionBtn.isConnected) actionBtn.disabled = prevDisabled;
             }
         }),
     );
