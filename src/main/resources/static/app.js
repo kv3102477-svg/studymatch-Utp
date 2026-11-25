@@ -1192,8 +1192,6 @@ function validateSessionTime() {
     const begin = new Date(date + "T" + time),
         end = new Date(begin.getTime() + duration * 60000);
     const minAllowed = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    if (begin <= minAllowed)
-        throw new Error("Programa o reprograma la sesión con más de 24 horas de anticipación.");
     if (
         sessionBusy.some((s) => {
             if (reschedulingSessionId && Number(s.id) === Number(reschedulingSessionId)) return false;
