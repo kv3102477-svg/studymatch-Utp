@@ -53,6 +53,7 @@ public class WebConfig implements WebMvcConfigurer {
                         response.setHeader("Cache-Control", "no-store");
                         response.setHeader("X-Content-Type-Options", "nosniff");
                         var session = request.getSession(false);
+                        if (request.getRequestURI().startsWith("/api/admin/")) return true;
                         if (!Set.of("GET", "HEAD", "OPTIONS").contains(request.getMethod())) {
                             String expected =
                                 session == null ? null : (String) session.getAttribute("csrf");

@@ -80,6 +80,12 @@ Abrir en el navegador:
 
     http://localhost:8085/
 
+El panel de administración está disponible en `http://localhost:8085/admin.html`
+y también desde el enlace «¿Eres administrador?» del inicio de sesión. Para crear
+la cuenta inicial, configura `ADMIN_EMAIL` y `ADMIN_PASSWORD` (mínimo 12
+caracteres); `ADMIN_NAME` es opcional. La recuperación por correo requiere
+`BREVO_API_KEY`, `MAIL_FROM` y `APP_URL`.
+
 En NetBeans, abrir `studymatch_Grupo1` como proyecto Maven.
 
 # Render 

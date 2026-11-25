@@ -29,8 +29,10 @@ loadMySubjects = async function () {
         ["ENSENAR", "perfil-showcase-teach"],
         ["APRENDER", "perfil-showcase-learn"],
     ]) {
+        const container = $(target);
+        if (!container) continue;
         const rows = mySubjects.filter((s) => s.tipo_rol === role);
-        $(target).innerHTML = rows.length
+        container.innerHTML = rows.length
             ? rows
                   .map(
                       (s) =>
@@ -343,6 +345,30 @@ document.addEventListener("DOMContentLoaded", () => {
                 show("soporte-ticket-confirmacion", true);
                 $("form-soporte-ticket").reset();
                 notify("Solicitud registrada con estado pendiente.");
+            } finally {
+                button.disabled = false;
+            }
+        }),
+    );
+    $("form-solicitud-curso").addEventListener(
+        "submit",
+        handle(async () => {
+            const button = $("btn-solicitar-curso");
+            if (button.disabled) return;
+            const nombre = $("solicitud-curso-nombre").value.trim();
+            const detalle = $("solicitud-curso-detalle").value.trim();
+            if (nombre.length < 2) throw new Error("Escribe el nombre del curso.");
+            button.disabled = true;
+            try {
+                const result = await api("/soporte", "POST", {
+                    categoria: "Sugerencias y Otros",
+                    asunto: `Solicitud para agregar curso: ${nombre}`,
+                    mensaje: `Solicitud para agregar el curso: ${nombre}.${detalle ? `\nDetalle: ${detalle}` : ""}`,
+                });
+                setText("solicitud-curso-codigo", result.codigo);
+                show("solicitud-curso-confirmacion", true);
+                $("form-solicitud-curso").reset();
+                notify("Solicitud de curso registrada. El equipo administrativo la revisará.");
             } finally {
                 button.disabled = false;
             }
