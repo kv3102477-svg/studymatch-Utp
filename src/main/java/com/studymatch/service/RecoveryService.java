@@ -106,6 +106,22 @@ public class RecoveryService {
         );
     }
 
+    /** Sends a time-limited password reset link for an administrator account. */
+    public void sendAdminRecovery(String email, String resetUrl) {
+        sendMail(
+            email,
+            "Restablecer tu contraseña de StudyMatch Admin",
+            "Para crear una nueva contraseña, abre este enlace (válido durante 30 minutos):\n" + resetUrl,
+            renderMail(
+                "Restablece tu contraseña",
+                "Recibimos una solicitud para cambiar la contraseña de tu cuenta administrativa. Usa el siguiente botón para crear una nueva.",
+                null,
+                resetUrl,
+                30
+            )
+        );
+    }
+
     public void sendVerificationCode(String email, String code) {
         sendMail(
             email,
