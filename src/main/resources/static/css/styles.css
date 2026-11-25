@@ -30,11 +30,12 @@
 
 html {
     width: 100%;
-    height: 100%;
+    min-height: 100%;
     -webkit-text-size-adjust: 100%;
     -ms-text-size-adjust: 100%;
     text-size-adjust: 100%;
     scroll-behavior: smooth;
+    overflow-x: clip;
 }
 
 body {
@@ -43,9 +44,9 @@ body {
     color: var(--text-dark);
     width: 100%;
     min-height: 100vh;
-    min-height: -webkit-fill-available;
+    min-height: 100svh;
     min-height: 100dvh;
-    overflow-x: hidden;
+    overflow-x: clip;
     overflow-y: auto;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -64,6 +65,7 @@ input,
 select,
 textarea {
     font-family: inherit;
+    max-width: 100%;
 }
 
 h1,
@@ -71,6 +73,7 @@ h2,
 h3,
 h4 {
     font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    overflow-wrap: break-word;
 }
 
 /* Ocultar cajas y consolas de pruebas académicas para simular ambiente web de producción */
@@ -87,13 +90,13 @@ h4 {
     left: 0;
     width: 100%;
     height: 100vh;
-    height: -webkit-fill-available;
+    height: 100svh;
     height: 100dvh;
     background-color: var(--bg-body);
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+    padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     z-index: 1000;
@@ -167,7 +170,7 @@ h4 {
     padding: 14px 16px;
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    font-size: 16px; /* Evita zoom automático en Safari iOS al tocar inputs */
+    font-size: 16px;
     outline: none;
     background-color: #ffffff;
     color: var(--text-dark);
@@ -216,10 +219,10 @@ h4 {
 
 /* ==================== APP MAIN STYLES ==================== */
 #app-container {
-    display: none; /* Changed via JS to flex */
+    display: none;
     width: 100%;
     height: 100vh;
-    height: -webkit-fill-available;
+    height: 100svh;
     height: 100dvh;
     overflow: hidden;
 }
@@ -375,7 +378,7 @@ h4 {
     height: 100%;
     padding: 0 36px calc(32px + env(safe-area-inset-bottom));
     overflow-y: auto;
-    overflow-x: hidden;
+    overflow-x: clip;
     -webkit-overflow-scrolling: touch;
     position: relative;
 }
@@ -789,7 +792,7 @@ select,
     padding: 12px 16px;
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    font-size: 16px; /* Evita auto-zoom en Safari iPhone/iPad */
+    font-size: 16px;
     color: var(--text-dark);
     background-color: #fff;
     outline: none;
@@ -905,6 +908,7 @@ select:focus,
     font-size: 13px;
     font-weight: 600;
     max-width: 100%;
+    overflow-wrap: break-word;
 }
 .tag .level {
     font-size: 11px;
@@ -1708,10 +1712,11 @@ textarea.form-input-error {
     background-color: #f8fafc;
 }
 
-/* ==================== MODAL VISTA PREVIA PÚBLICA (CONTRASTE Y VISIBILIDAD) ==================== */
+/* ==================== MODAL VISTA PREVIA PÚBLICA Y PERFIL (#modal-companero-perfil) ==================== */
 [id*="modal-vista-previa"],
 [id*="modal-perfil"],
-#modal-public-profile {
+#modal-public-profile,
+#modal-companero-perfil {
     color: #111827 !important;
 }
 
@@ -1722,9 +1727,61 @@ textarea.form-input-error {
 [id*="modal-vista-previa"] span,
 [id*="modal-perfil"] h2,
 [id*="modal-perfil"] h3,
-[id*="modal-perfil"] p {
+[id*="modal-perfil"] p,
+#modal-companero-perfil h2,
+#modal-companero-perfil h3,
+#modal-companero-perfil h4,
+#modal-companero-perfil p,
+#modal-companero-perfil span {
     opacity: 1 !important;
     visibility: visible !important;
+}
+
+/* Contraste explícito en modo claro y oscuro para los datos del modal de perfil */
+#modal-companero-perfil,
+#modal-companero-perfil > div {
+    color-scheme: light !important;
+}
+
+#modal-comp-nombre {
+    color: #0f172a !important;
+    overflow-wrap: break-word;
+}
+
+#modal-comp-carrera {
+    color: #475569 !important;
+    overflow-wrap: break-word;
+}
+
+#modal-comp-avatar {
+    background-color: #9f1239 !important;
+    color: #ffffff !important;
+}
+
+#modal-comp-bio,
+#modal-comp-disponibilidad {
+    color: #334155 !important;
+    overflow-wrap: break-word;
+}
+
+#modal-comp-teach-list .tag,
+#modal-comp-teach-list .tag-purple {
+    background-color: #ffffff !important;
+    color: #881337 !important;
+    border: 1px solid #fecdd3 !important;
+}
+
+#modal-comp-learn-list .tag,
+#modal-comp-learn-list .tag-green {
+    background-color: #ffffff !important;
+    color: #065f46 !important;
+    border: 1px solid #a7f3d0 !important;
+}
+
+#modal-comp-teach-list .tag .level,
+#modal-comp-learn-list .tag .level {
+    color: #64748b !important;
+    opacity: 1 !important;
 }
 
 /* ==================== RESPONSIVE GLOBAL (TODAS LAS VISTAS Y NAVEGADORES) ==================== */
@@ -1785,7 +1842,7 @@ textarea.form-input-error {
         top: 0;
         left: 0;
         height: 100vh;
-        height: -webkit-fill-available;
+        height: 100svh;
         height: 100dvh;
         z-index: 1300;
         transform: translateX(-100%);
@@ -1878,6 +1935,85 @@ textarea.form-input-error {
         min-width: 0;
     }
 
+    /* Mis Sesiones: encabezado, botón Refrescar, tarjetas y botones */
+    #mis-sesiones-section > div:first-child,
+    #mis-sesiones-section .section-header,
+    #mis-sesiones-section .page-header {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 12px !important;
+        width: 100% !important;
+    }
+
+    #btn-rf027-refresh {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+
+    #historial-container {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        gap: 16px !important;
+    }
+
+    #historial-container > * {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        padding: 16px !important;
+        box-sizing: border-box !important;
+    }
+
+    #historial-container > * > div:first-child {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+
+    #historial-container [data-field="companero"],
+    #historial-container [data-field="fecha"],
+    #historial-container [data-field="hora"],
+    #historial-container [data-field="duracion"] {
+        white-space: normal !important;
+        overflow-wrap: anywhere !important;
+    }
+
+    #historial-container [data-field="acciones"] {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+        width: 100% !important;
+    }
+
+    #historial-container [data-field="acciones"] .btn {
+        width: 100% !important;
+        min-width: 0 !important;
+        padding: 10px 8px !important;
+        font-size: 12.5px !important;
+        justify-content: center !important;
+        text-align: center !important;
+        white-space: normal !important;
+    }
+
+    /* Panel / Popover de Notificaciones encuadrado dentro del ancho visible */
+    #notificaciones-dropdown,
+    .notifications-dropdown,
+    .notif-popover,
+    [id*="notif"][style*="position: absolute"],
+    [id*="notif"][style*="position: fixed"] {
+        position: fixed !important;
+        left: max(12px, env(safe-area-inset-left)) !important;
+        right: max(12px, env(safe-area-inset-right)) !important;
+        top: calc(76px + env(safe-area-inset-top)) !important;
+        width: auto !important;
+        max-width: calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)) !important;
+        transform: none !important;
+        box-sizing: border-box !important;
+        z-index: 1250 !important;
+    }
+
     /* Chat móvil Master-Detail compatible con TODOS los navegadores */
     #chat-section .header {
         margin-bottom: 10px !important;
@@ -1891,41 +2027,54 @@ textarea.form-input-error {
         display: inline-flex;
     }
 
-    #chat-section .chat-layout-wrapper {
+    #chat-section .chat-layout-wrapper,
+    #chat-section .chat-container,
+    #chat-section .chat-layout,
+    .chat-wrapper {
         display: block !important;
         width: 100% !important;
+        max-width: 100% !important;
         height: auto !important;
         min-height: 0 !important;
         max-height: none !important;
+        overflow: visible !important;
     }
 
     /* Vista 1 por defecto: Lista de chats a pantalla completa */
-    #chat-section:not(.mobile-chat-open) .chat-list-panel {
+    #chat-section:not(.mobile-chat-open) .chat-list-panel,
+    #chat-section:not(.mobile-chat-open) .chat-sidebar {
         display: flex !important;
         flex-direction: column !important;
         width: 100% !important;
         max-width: 100% !important;
+        min-width: 0 !important;
         height: calc(100vh - 185px) !important;
+        height: calc(100svh - 185px - env(safe-area-inset-bottom)) !important;
         height: calc(100dvh - 185px - env(safe-area-inset-bottom)) !important;
         min-height: 380px !important;
         border-right: none !important;
     }
 
-    #chat-section:not(.mobile-chat-open) .chat-messages-panel {
+    #chat-section:not(.mobile-chat-open) .chat-messages-panel,
+    #chat-section:not(.mobile-chat-open) .chat-main {
         display: none !important;
     }
 
     /* Vista 2 al tocar una conversación: Chat abierto a pantalla completa */
-    #chat-section.mobile-chat-open .chat-list-panel {
+    #chat-section.mobile-chat-open .chat-list-panel,
+    #chat-section.mobile-chat-open .chat-sidebar {
         display: none !important;
     }
 
-    #chat-section.mobile-chat-open .chat-messages-panel {
+    #chat-section.mobile-chat-open .chat-messages-panel,
+    #chat-section.mobile-chat-open .chat-main {
         display: flex !important;
         flex-direction: column !important;
         width: 100% !important;
         max-width: 100% !important;
+        min-width: 0 !important;
         height: calc(100vh - 175px) !important;
+        height: calc(100svh - 175px - env(safe-area-inset-bottom)) !important;
         height: calc(100dvh - 175px - env(safe-area-inset-bottom)) !important;
         min-height: 400px !important;
     }
@@ -1933,9 +2082,68 @@ textarea.form-input-error {
     #chat-conversation-list,
     #chat-messages-container {
         flex: 1 1 auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
         height: auto !important;
         min-height: 0 !important;
         max-height: none !important;
+    }
+
+    #chat-messages-container > div > div {
+        max-width: 85% !important;
+        min-width: 0 !important;
+        word-break: normal !important;
+        overflow-wrap: anywhere !important;
+    }
+
+    /* Barra inferior de envío del chat en móvil: íconos, input y botón enviar completos */
+    #chat-section .chat-input-area,
+    #chat-section .chat-footer,
+    #chat-section form:has(#chat-input-mensaje),
+    #chat-section div:has(> #chat-input-mensaje) {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        padding: 8px 10px !important;
+        box-sizing: border-box !important;
+    }
+
+    #btn-chat-attach,
+    #btn-chat-image {
+        flex: 0 0 auto !important;
+        width: 32px !important;
+        height: 32px !important;
+        min-width: 32px !important;
+        padding: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    #chat-input-mensaje {
+        flex: 1 1 auto !important;
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        padding: 10px 14px !important;
+        font-size: 14px !important;
+    }
+
+    #btn-chat-enviar {
+        flex: 0 0 auto !important;
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+        padding: 0 !important;
+        border-radius: 50% !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        margin-right: 0 !important;
     }
 
     /* Ranking y Podio */
@@ -2068,6 +2276,7 @@ textarea.form-input-error {
         width: 94vw !important;
         max-width: 94vw !important;
         max-height: 88vh !important;
+        max-height: 88svh !important;
         max-height: 88dvh !important;
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch;
@@ -2113,8 +2322,9 @@ textarea.form-input-error {
 @media (max-width: 480px) {
     .metrics-grid,
     .suggested-grid,
-    .badges-grid {
-        grid-template-columns: 1fr;
+    .badges-grid,
+    #historial-container [data-field="acciones"] {
+        grid-template-columns: 1fr !important;
     }
 
     .mentor-card-actions {
@@ -2137,8 +2347,8 @@ textarea.form-input-error {
 
     #topbar-notif-dropdown {
         position: fixed !important;
-        left: 12px !important;
-        right: 12px !important;
+        left: max(12px, env(safe-area-inset-left)) !important;
+        right: max(12px, env(safe-area-inset-right)) !important;
         top: calc(96px + env(safe-area-inset-top)) !important;
         width: auto !important;
         max-width: none !important;
@@ -2178,4 +2388,64 @@ textarea.form-input-error {
     cursor: pointer !important;
     line-height: 1 !important;
     z-index: 5 !important;
+}
+
+/* =========================================================
+   CONTRASTE DE TEXTO EN MODAL DE PERFIL (VISTA PREVIA PÚBLICA)
+   ========================================================= */
+#modal-companero-perfil,
+#modal-companero-perfil > div,
+[id*="modal-vista-previa"],
+[id*="modal-vista-previa"] > div {
+    color-scheme: light !important;
+    color: #0f172a !important;
+}
+
+#modal-companero-perfil p,
+#modal-companero-perfil span,
+#modal-companero-perfil div,
+[id*="modal-vista-previa"] p,
+[id*="modal-vista-previa"] span,
+[id*="modal-vista-previa"] div {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+#modal-companero-perfil p,
+#modal-companero-perfil span:not(.badge):not(.pro-badge):not(.tag):not(.tag *),
+[id*="modal-vista-previa"] p,
+[id*="modal-vista-previa"] span:not(.badge):not(.pro-badge):not(.tag):not(.tag *) {
+    color: #1e293b !important;
+}
+
+#modal-comp-nombre,
+#modal-companero-perfil h2,
+#modal-companero-perfil h3,
+#modal-companero-perfil h4,
+[id*="modal-vista-previa"] h2,
+[id*="modal-vista-previa"] h3,
+[id*="modal-vista-previa"] h4 {
+    color: #0f172a !important;
+}
+
+#modal-comp-carrera,
+#modal-comp-bio,
+#modal-comp-disponibilidad {
+    color: #334155 !important;
+}
+
+#modal-comp-teach-list .tag,
+#modal-comp-teach-list .tag-purple,
+#modal-comp-teach-list span {
+    background-color: #ffffff !important;
+    color: #881337 !important;
+    border-color: #fecdd3 !important;
+}
+
+#modal-comp-learn-list .tag,
+#modal-comp-learn-list .tag-green,
+#modal-comp-learn-list span {
+    background-color: #ffffff !important;
+    color: #065f46 !important;
+    border-color: #a7f3d0 !important;
 }
