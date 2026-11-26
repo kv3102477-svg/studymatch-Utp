@@ -88,14 +88,6 @@
                     <img
                         src="/img/studymatch-logo.png"
                         alt="Logo StudyMatch UTP"
-                        style="
-                            height: 52px;
-                            width: auto;
-                            object-fit: contain;
-                            display: block;
-                            image-rendering: -webkit-optimize-contrast;
-                            filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.06));
-                        "
                     />
                     <div class="logo-text"
                         >StudyMatch<span>UTP - Intercambio de tutorías</span></div
@@ -248,14 +240,6 @@
                     <img
                         src="/img/studymatch-logo.png"
                         alt="Logo StudyMatch UTP"
-                        style="
-                            height: 52px;
-                            width: auto;
-                            object-fit: contain;
-                            display: block;
-                            image-rendering: -webkit-optimize-contrast;
-                            filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.06));
-                        "
                     />
                     <div class="logo-text"
                         >StudyMatch<span>UTP - Intercambio de tutorías</span></div
@@ -3278,31 +3262,33 @@
                         <h1>Mi Perfil Académico</h1>
                         <p>Gestiona tu información, materias y horarios.</p>
                     </div>
+                    <div class="section-card profile-summary-card" style="padding: 20px;">
+                        <div>
+                            <div>
+                                <div id="summary-nombre" style="font-weight: 800; font-size: 17px; color: #0f172a; line-height: 1.25;">—</div>
+                                <div style="font-size: 13px; color: var(--text-muted); margin-top: 2px;"><span id="summary-carrera">—</span> · <span id="summary-ciclo">—</span></div>
+                                <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px;">
+                                    <span class="mode-pill" id="summary-modo">Modo Aprendiz</span>
+                                    <span class="mini-stat">0 h enseñadas</span>
+                                    <span class="mini-stat">0 h aprendidas</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 14px;">
+                            <button type="button" id="btn-preview-public-profile" class="btn btn-preview-mini"><i class="fa-regular fa-eye" style="color: #7a1735; font-size: 15px"></i> Así me ven mis compañeros</button>
+                        </div>
+                    </div>
 
                     <div
                         class="tabs perfil-main-tabs"
                         id="perfil-main-tabs"
-                        style="
-                            margin-top: 18px;
-                            margin-bottom: 24px;
-                            border-bottom: 2px solid #e2e8f0;
-                            display: flex;
-                            gap: 8px;
-                        "
+                        style="margin-top: 18px; margin-bottom: 24px; display: flex; gap: 6px; background: #ffffff; border: 1px solid var(--border-color); border-radius: 12px; padding: 6px; overflow-x: auto;"
                     >
                         <div
                             class="tab active"
                             data-target="tab-informacion"
                             id="tab-btn-informacion"
-                            style="
-                                font-weight: 700;
-                                font-size: 14px;
-                                padding: 10px 22px;
-                                cursor: pointer;
-                                display: inline-flex;
-                                align-items: center;
-                                gap: 8px;
-                            "
+
                         >
                             <i class="fa-solid fa-user-gear"></i> Información
                         </div>
@@ -3310,15 +3296,7 @@
                             class="tab"
                             data-target="tab-historial-sesiones"
                             id="tab-btn-historial"
-                            style="
-                                font-weight: 700;
-                                font-size: 14px;
-                                padding: 10px 22px;
-                                cursor: pointer;
-                                display: inline-flex;
-                                align-items: center;
-                                gap: 8px;
-                            "
+
                         >
                             <i class="fa-solid fa-clock-rotate-left"></i> Historial de Sesiones
                         </div>
@@ -3326,49 +3304,14 @@
                             class="tab"
                             data-target="tab-certificados-logros"
                             id="tab-btn-certificados"
-                            style="
-                                font-weight: 700;
-                                font-size: 14px;
-                                padding: 10px 22px;
-                                cursor: pointer;
-                                display: inline-flex;
-                                align-items: center;
-                                gap: 8px;
-                            "
+
                         >
                             <i class="fa-solid fa-award"></i> Certificados y Logros
                         </div>
                     </div>
 
                     <div id="tab-informacion" class="perfil-tab-content active">
-                        <div style="display: flex; justify-content: flex-end; margin-bottom: 20px">
-                            <button
-                                type="button"
-                                id="btn-preview-public-profile"
-                                class="btn"
-                                style="
-                                    padding: 10px 22px;
-                                    font-size: 13px;
-                                    background: #ffffff;
-                                    color: #0f172a;
-                                    border: 1.5px solid #cbd5e1;
-                                    border-radius: 12px;
-                                    font-weight: 700;
-                                    cursor: pointer;
-                                    display: inline-flex;
-                                    align-items: center;
-                                    gap: 8px;
-                                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-                                    transition: all 0.2s ease;
-                                "
-                            >
-                                <i
-                                    class="fa-regular fa-eye"
-                                    style="color: #7a1735; font-size: 15px"
-                                ></i>
-                                Así me ven mis compañeros
-                            </button>
-                        </div>
+                        
 
                         <div style="display: none">
                             <span id="card-nombre">—</span>
@@ -3397,10 +3340,7 @@
                         </div>
 
                         <div id="tab-basica" class="tab-content active">
-                            <div class="section-card">
-                                <div class="section-title">Datos Básicos</div>
-
-                                <div
+                            <div class="section-card"><div class="section-title">Datos Básicos</div><div
                                     id="perfil-error-msg"
                                     class="form-error-alert"
                                     style="display: none"
@@ -3410,40 +3350,7 @@
                                         >Por favor completa todos los campos obligatorios del
                                         formulario.</span
                                     >
-                                </div>
-
-                                <div class="form-group">
-                                    <label>Nombre completo</label>
-                                    <input type="text" id="perfil-nombre" class="form-input" />
-                                </div>
-                                <div class="form-row">
-                                    <div class="form-group" style="flex: 1">
-                                        <label>Carrera</label>
-                                        <select
-                                            type="text"
-                                            id="perfil-carrera"
-                                            class="form-input"
-                                            title="No se permiten números en la carrera"
-                                            ><option value="">Cargando carreras…</option></select
-                                        >
-                                    </div>
-                                    <div class="form-group" style="flex: 1">
-                                        <label>Ciclo actual</label>
-                                        <div class="select-wrapper">
-                                            <select id="perfil-ciclo"></select>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <label>Presentación breve</label>
-                                    <textarea
-                                        id="perfil-bio"
-                                        class="form-input"
-                                        rows="3"
-                                        placeholder="Cuéntale a tus compañeros quién eres y en qué puedes ayudarles..."
-                                    ></textarea>
-                                </div>
-                                <div class="form-group" style="margin-bottom: 24px">
+                                </div><div class="form-group" style="margin-bottom: 24px">
                                     <label>Foto de perfil</label>
                                     <div style="display: flex; gap: 16px; align-items: center">
                                         <div
@@ -3484,9 +3391,36 @@
                                             <i class="fa-solid fa-trash-can"></i> Quitar foto
                                         </button>
                                     </div>
-                                </div>
-
-                                <div style="display: flex; gap: 12px">
+                                </div><div class="form-group">
+                                    <label>Nombre completo</label>
+                                    <input type="text" id="perfil-nombre" class="form-input" />
+                                </div><div class="form-row">
+                                    <div class="form-group" style="flex: 1">
+                                        <label>Carrera</label>
+                                        <select
+                                            type="text"
+                                            id="perfil-carrera"
+                                            class="form-input"
+                                            title="No se permiten números en la carrera"
+                                            ><option value="">Cargando carreras…</option></select
+                                        >
+                                    </div>
+                                    <div class="form-group" style="flex: 1">
+                                        <label>Ciclo actual</label>
+                                        <div class="select-wrapper">
+                                            <select id="perfil-ciclo"></select>
+                                        </div>
+                                    </div>
+                                </div><div class="form-group">
+                                    <label>Presentación breve</label>
+                                    <textarea
+                                        id="perfil-bio"
+                                        class="form-input"
+                                        rows="3"
+                                        placeholder="Cuéntale a tus compañeros quién eres y en qué puedes ayudar..."
+                                    ></textarea>
+<p style="font-size: 12px; color: var(--text-muted); margin: 6px 0 0;">Se muestra en tu perfil público.</p>
+                                </div><div style="display: flex; gap: 12px">
                                     <button class="btn btn-primary" id="btn-save-profile"
                                         >Guardar cambios</button
                                     >
@@ -3500,15 +3434,14 @@
                                         id="btn-cancel-profile"
                                         >Cancelar</button
                                     >
-                                </div>
-                            </div>
+                                </div></div>
                         </div>
 
                         <div id="tab-materias" class="tab-content">
                             <div
                                 style="
-                                    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-                                    border: 1px solid #e2e8f0;
+                                    background: linear-gradient(135deg, #fdf2f4 0%, #f7e9ed 100%);
+                                    border: 1px solid #e8c5ce;
                                     border-radius: 12px;
                                     padding: 14px 18px;
                                     margin-bottom: 20px;
@@ -3522,7 +3455,7 @@
                                         width: 42px;
                                         height: 42px;
                                         border-radius: 10px;
-                                        background: #f7e9ed;
+                                        background: #ffffff;
                                         color: #7a1735;
                                         display: flex;
                                         align-items: center;
@@ -3533,17 +3466,12 @@
                                 >
                                     <i class="fa-solid fa-arrows-split-up-and-left"></i>
                                 </div>
-                                <div style="font-size: 13px; color: #334155; line-height: 1.45">
-                                    <strong style="color: #0f172a"
-                                        >Modelo de Aprendizaje entre Pares (P2P):</strong
-                                    >
-                                    En StudyMatch UTP tu rol se activa automáticamente según la
-                                    materia de cada sesión: eres
-                                    <strong style="color: #7a1735">Mentor</strong> cuando enseñas
-                                    materias que dominas y
-                                    <strong style="color: #16a34a">Aprendiz</strong> cuando recibes
-                                    apoyo para aprobar tus cursos.
-                                </div>
+                                <div style="font-size: 13px; color: #334155; line-height: 1.45"
+                                    >Enseñas lo que dominas y aprendes lo que necesitas:
+                                    <strong style="color: #7a1735"
+                                        >tu rol cambia solo según la materia.</strong
+                                    ></div
+                                >
                             </div>
 
                             <div
@@ -3568,7 +3496,7 @@
                                                 class="fa-solid fa-graduation-cap"
                                                 style="color: #7a1735; margin-right: 6px"
                                             ></i>
-                                            Mis materias fuertes (Doy tutoría)
+                                            Doy tutoría
                                         </div>
                                         <p style="margin: 0; font-size: 12.5px; color: #64748b">
                                             En estas materias actuarás como <strong>Mentor</strong>.
@@ -3673,7 +3601,7 @@
                                                 class="fa-solid fa-book-open-reader"
                                                 style="color: #16a34a; margin-right: 6px"
                                             ></i>
-                                            Materias en las que busco apoyo (Recibo tutoría)
+                                            Busco apoyo
                                         </div>
                                         <p style="margin: 0; font-size: 12.5px; color: #64748b">
                                             En estas materias actuarás como
@@ -6656,6 +6584,7 @@
             "
         >
             <div
+                class="pm-dialog"
                 style="
                     background: white;
                     border-radius: 24px;
@@ -6670,8 +6599,8 @@
             >
                 <div
                     style="
-                        background: linear-gradient(135deg, #111827 0%, #7a1735 100%);
-                        height: 80px;
+                        background: #7a1735;
+                        height: 64px;
                         position: relative;
                         border-radius: 24px 24px 0 0;
                     "
@@ -6679,13 +6608,13 @@
                     <button
                         style="
                             position: absolute;
-                            top: 16px;
-                            right: 16px;
+                            top: 12px;
+                            right: 12px;
                             background: rgba(255, 255, 255, 0.2);
                             backdrop-filter: blur(4px);
                             border: none;
-                            width: 34px;
-                            height: 34px;
+                            width: 40px;
+                            height: 40px;
                             border-radius: 50%;
                             display: flex;
                             align-items: center;
@@ -6723,13 +6652,13 @@
                     <div
                         style="
                             display: flex;
-                            justify-content: space-between;
                             align-items: center;
                             padding-top: 14px;
                             margin-bottom: 12px;
                         "
                     >
                         <span
+                            class="pm-label"
                             style="
                                 font-size: 11px;
                                 font-weight: 700;
@@ -6745,13 +6674,10 @@
                             <i class="fa-solid fa-id-badge" style="margin-right: 4px"></i> Perfil de
                             Usuario
                         </span>
-                        <span style="font-size: 11px; color: #94a3b8; font-weight: 600">
-                            <i class="fa-solid fa-user-check" style="color: #6366f1"></i> Perfil
-                            Académico
-                        </span>
                     </div>
 
                     <div
+                        class="pm-user"
                         style="
                             background: #f8fafc;
                             border: 1.5px solid #e2e8f0;
@@ -6765,15 +6691,15 @@
                                 <div
                                     id="modal-comp-avatar"
                                     style="
-                                        width: 64px;
-                                        height: 64px;
+                                        width: 72px;
+                                        height: 72px;
                                         border-radius: 50%;
-                                        background: linear-gradient(135deg, #111827, #7a1735);
+                                        background: #7a1735;
                                         color: white;
                                         display: flex;
                                         align-items: center;
                                         justify-content: center;
-                                        font-size: 22px;
+                                        font-size: 24px;
                                         font-weight: 800;
                                         border: 3px solid white;
                                         box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
@@ -6861,6 +6787,7 @@
                     </div>
 
                     <div
+                        class="pm-bio"
                         style="
                             background: #ffffff;
                             border: 1px solid #e2e8f0;
@@ -6896,9 +6823,20 @@
                             "
                             >—</p
                         >
+                        <p
+                            id="modal-comp-bio-hint"
+                            style="
+                                display: none;
+                                font-size: 12px;
+                                color: #7a1735;
+                                margin: 6px 0 0;
+                            "
+                            >Agrega una presentación desde tu perfil.</p
+                        >
                     </div>
 
                     <div
+                        class="pm-teach"
                         style="
                             background: #f7e9ed;
                             border: 1px solid #ede9fe;
@@ -6917,8 +6855,9 @@
                             "
                         >
                             <div
+                                class="pm-teach-title"
                                 style="
-                                    font-size: 12px;
+                                    font-size: 13px;
                                     font-weight: 800;
                                     color: #5f1028;
                                     text-transform: uppercase;
@@ -6928,10 +6867,10 @@
                                     gap: 6px;
                                 "
                             >
-                                <i class="fa-solid fa-graduation-cap"></i> Cursos en los que es
-                                bueno (Puede enseñar)
+                                <i class="fa-solid fa-graduation-cap"></i> Puede enseñar
                             </div>
                             <span
+                                class="pm-role-mentor"
                                 style="
                                     background: #f7e9ed;
                                     color: #7a1735;
@@ -6951,6 +6890,7 @@
                     </div>
 
                     <div
+                        class="pm-learn"
                         style="
                             background: #f0fdf4;
                             border: 1px solid #dcfce7;
@@ -6969,8 +6909,9 @@
                             "
                         >
                             <div
+                                class="pm-learn-title"
                                 style="
-                                    font-size: 12px;
+                                    font-size: 13px;
                                     font-weight: 800;
                                     color: #15803d;
                                     text-transform: uppercase;
@@ -6980,10 +6921,10 @@
                                     gap: 6px;
                                 "
                             >
-                                <i class="fa-solid fa-book-open-reader"></i> Cursos que se le
-                                dificultan (Busca apoyo)
+                                <i class="fa-solid fa-book-open-reader"></i> Busca apoyo
                             </div>
                             <span
+                                class="pm-role-aprendiz"
                                 style="
                                     background: #dcfce7;
                                     color: #16a34a;
@@ -7003,6 +6944,7 @@
                     </div>
 
                     <div
+                        class="pm-avail"
                         style="
                             background: #f8fafc;
                             border: 1px solid #e2e8f0;
@@ -7057,6 +6999,7 @@
                     </div>
 
                     <div
+                        class="pm-report"
                         id="modal-comp-report-footer"
                         style="
                             margin-top: 16px;
