@@ -56,6 +56,7 @@ function updateMode() {
     show("dash-mentor-panel", mentor);
     setText("txt-modo-rol", mentor ? "Modo Mentor" : "Modo Aprendiz");
     setText("dash-mode-badge", mentor ? "Modo Mentor Activo" : "Modo Aprendiz Activo");
+    setText("summary-modo", mentor ? "Modo Mentor" : "Modo Aprendiz");
     setText(
         "quick-match-headline",
         mentor ? "¿En qué curso puedes ayudar hoy?" : "¿En qué curso necesitas apoyo hoy?",
@@ -92,7 +93,7 @@ function updateSessionPanels() {
                       `<div class="session-item"><div class="session-avatar" style="background:var(--primary);">${escapeHtml(initials(s.companero))}</div><div class="session-info"><h4>${escapeHtml(s.materia)}</h4><p>${escapeHtml(s.companero)} · ${escapeHtml(dateText(s.fecha_hora))}</p></div><span class="badge badge-success">${Number(s.duracion_real_min)} min</span></div>`,
               )
               .join("")
-        : empty("Todavía no hay sesiones completadas.");
+        : `<div style="padding:24px 24px 8px;text-align:center;color:var(--text-muted);">Todavía no tienes sesiones completadas</div><div style="text-align:center;padding-bottom:8px;"><button type="button" class="btn btn-primary" data-go="buscar-section">Buscar un mentor</button></div>`;
 }
 studentCard = function (s) {
     const relevant = displayMode === "APRENDER" ? s.materias_ensenar : s.materias_aprender;
@@ -456,5 +457,11 @@ document.addEventListener("DOMContentLoaded", () => {
             window.cerrarModalCompanero();
             navigate("perfil-section");
             selectProfileTab("tab-informacion");
+            if (button.dataset.profileTab) {
+                const subTab = document.querySelector(
+                    `#tab-informacion .sub-tabs-container .tab[data-target="${button.dataset.profileTab}"]`,
+                );
+                if (subTab) subTab.click();
+            }
         });
 });
