@@ -1064,7 +1064,7 @@ async function loadSessions() {
 function sessionCard(s) {
     const expired = isExpiredSession(s);
     const button = (action, label) =>
-        `<button class="btn btn-primary" data-session="${s.id}" data-session-action="${action}">${label}</button>`;
+        `<button class="btn btn-primary btn-mini" data-session="${s.id}" data-session-action="${action}">${label}</button>`;
     let actions = "";
     if (!expired) {
         if (s.estado === "PROPUESTA" && s.receptor_id === currentUser.id)
@@ -1112,9 +1112,7 @@ function sessionCard(s) {
     );
     fill(
         "duracion",
-        (s.duracion_real_min === null
-            ? `${s.duracion_programada_min} minutos programados`
-            : `${s.duracion_real_min} minutos registrados`) +
+        `${s.duracion_real_min === null ? s.duracion_programada_min : s.duracion_real_min} min` +
             (s.estrellas ? ` · Tu calificación: ${s.estrellas}/5` : ""),
     );
     card.querySelector('[data-field="acciones"]').innerHTML = actions;
@@ -1126,17 +1124,17 @@ function paintSessionTabs() {
     if (activeTab) {
         activeTab.classList.add("active");
         activeTab.setAttribute("aria-selected", "true");
-        activeTab.style.setProperty("color", "var(--primary, #b30832)", "important");
-        activeTab.style.setProperty("border-bottom", "2px solid var(--primary, #b30832)", "important");
-        activeTab.style.setProperty("font-weight", "600", "important");
     }
     if (inactiveTab) {
         inactiveTab.classList.remove("active");
         inactiveTab.setAttribute("aria-selected", "false");
-        inactiveTab.style.removeProperty("color");
-        inactiveTab.style.removeProperty("border-bottom");
-        inactiveTab.style.removeProperty("font-weight");
     }
+}
+function sessionsEmptyHTML() {
+    if (pastSessions) {
+        return `<div class="sess-empty"><span class="empty-ico"><i class="fa-regular fa-calendar"></i></span><h3>Todavía no tienes sesiones pasadas</h3><p>Cuando completes tu primera asesoría, aparecerá aquí.</p><button type="button" class="btn btn-primary" data-go="buscar-section">Buscar un mentor</button></div>`;
+    }
+    return `<div class="sess-empty"><span class="empty-ico"><i class="fa-regular fa-calendar"></i></span><h3>Todavía no tienes sesiones próximas</h3><p>Cuando agendes tu primera asesoría, aparecerá aquí.</p><button type="button" class="btn btn-primary" data-go="buscar-section">Buscar un mentor</button></div>`;
 }
 function renderSessions() {
     paintSessionTabs();
@@ -1145,7 +1143,7 @@ function renderSessions() {
     );
     $("historial-container").innerHTML = rows.length
         ? rows.map(sessionCard).join("")
-        : empty("No tienes sesiones en esta sección.");
+        : sessionsEmptyHTML();
 }
 async function loadBadges() {
     badges = await api("/insignias");
