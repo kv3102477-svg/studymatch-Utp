@@ -64,7 +64,7 @@ function updateMode() {
         "dash-mode-desc",
         mentor
             ? "Revisa las solicitudes de apoyo y las materias que puedes enseñar."
-            : "Revisa tus próximas actividades y encuentra apoyo en tus materias.",
+            : "Busca un mentor para tus cursos o revisa tus próximas sesiones.",
     );
     const toggle = $("btn-toggle-rol");
     toggle.setAttribute("aria-pressed", String(mentor));
