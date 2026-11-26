@@ -5146,20 +5146,20 @@
 
                 <section id="mis-sesiones-section" class="page-section">
                     <div
-                        class="header"
-                        style="
-                            display: flex;
-                            justify-content: space-between;
-                            align-items: flex-start;
-                        "
-                    >
+                    <div class="header sess-head-new">
                         <div>
                             <h1>Mis Sesiones</h1>
                             <p>Consulta tu historial de tutorías pasadas y próximas.</p>
                         </div>
-                        <button class="btn btn-secondary" id="btn-rf027-refresh"
-                            ><i class="fa-solid fa-rotate-right"></i> Refrescar</button
+                        <button
+                            class="refresh-round"
+                            id="btn-rf027-refresh"
+                            type="button"
+                            title="Refrescar"
+                            aria-label="Refrescar"
                         >
+                            <i class="fa-solid fa-rotate-right"></i>
+                        </button>
                     </div>
 
                     <div
@@ -5172,24 +5172,19 @@
                         "
                     >
                         <div
+                    <div class="tabs-pills">
+                        <div
                             id="tab-proximas"
-                            style="
-                                font-weight: 600;
-                                color: var(--primary);
-                                cursor: pointer;
-                                padding-bottom: 8px;
-                                border-bottom: 2px solid var(--primary);
-                            "
+                            class="tab-pill active"
+                            role="tab"
+                            aria-selected="true"
                             >Próximas</div
                         >
                         <div
                             id="tab-pasadas"
-                            style="
-                                font-weight: 500;
-                                color: var(--text-muted);
-                                cursor: pointer;
-                                padding-bottom: 8px;
-                            "
+                            class="tab-pill"
+                            role="tab"
+                            aria-selected="false"
                             >Pasadas (Historial)</div
                         >
                     </div>
@@ -8792,121 +8787,40 @@
                 </div>
             </div> </template
         ><template id="session-card-template"
-            ><div
-                style="
-                    background: white;
-                    border: 1px solid var(--border-color);
-                    border-radius: 12px;
-                    margin-bottom: 24px;
-                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-                "
-            >
-                <div style="padding: 24px">
-                    <div
-                        style="
-                            display: flex;
-                            justify-content: space-between;
-                            align-items: flex-start;
-                            margin-bottom: 4px;
-                        "
+            ><div class="sess-card">
+                <div class="sess-card-top">
+                    <h2 data-field="materia"></h2>
+                    <span class="sess-badge" data-field="estado"></span>
+                </div>
+                <p class="sess-sub">Sesión de estudio colaborativo</p>
+
+                <hr class="sess-hr" />
+
+                <div class="sess-grid">
+                    <div class="sess-lbl"
+                        ><i class="fa-regular fa-user"></i> Compañero</div
                     >
-                        <h2
-                            style="margin: 0; font-size: 20px; font-weight: 700"
-                            data-field="materia"
-                        ></h2>
-                        <span
-                            style="
-                                background: #e8f5e9;
-                                color: #2ecc71;
-                                padding: 6px 12px;
-                                border-radius: 20px;
-                                font-size: 12px;
-                                font-weight: 600;
-                            "
-                            data-field="estado"
-                        ></span>
-                    </div>
-                    <p
-                        style="
-                            color: var(--text-muted);
-                            margin-top: 0;
-                            margin-bottom: 20px;
-                            font-size: 14px;
-                        "
-                        >Sesión de estudio colaborativo</p
+                    <div class="sess-val" data-field="companero"></div>
+
+                    <div class="sess-lbl"
+                        ><i class="fa-regular fa-calendar"></i> Fecha</div
                     >
+                    <div class="sess-val" data-field="fecha"></div>
 
-                    <hr
-                        style="
-                            border: 0;
-                            border-top: 1px solid var(--border-color);
-                            margin: 0 0 20px 0;
-                        "
-                    />
-
-                    <div
-                        style="
-                            display: grid;
-                            grid-template-columns: 120px 1fr;
-                            row-gap: 12px;
-                            font-size: 14px;
-                        "
+                    <div class="sess-lbl"
+                        ><i class="fa-regular fa-clock"></i> Hora</div
                     >
-                        <div
-                            style="
-                                color: var(--text-muted);
-                                display: flex;
-                                align-items: center;
-                                gap: 8px;
-                            "
-                            ><i
-                                class="fa-regular fa-user"
-                                style="width: 16px; text-align: center"
-                            ></i>
-                            Compañero</div
-                        >
-                        <div style="font-weight: 500" data-field="companero"></div>
+                    <div class="sess-val" data-field="hora"></div>
+                </div>
 
-                        <div
-                            style="
-                                color: var(--text-muted);
-                                display: flex;
-                                align-items: center;
-                                gap: 8px;
-                            "
-                            ><i
-                                class="fa-regular fa-calendar"
-                                style="width: 16px; text-align: center"
-                            ></i>
-                            Fecha</div
-                        >
-                        <div style="font-weight: 500" data-field="fecha"></div>
+                <hr class="sess-hr" />
 
-                        <div
-                            style="
-                                color: var(--text-muted);
-                                display: flex;
-                                align-items: center;
-                                gap: 8px;
-                            "
-                            ><i
-                                class="fa-regular fa-clock"
-                                style="width: 16px; text-align: center"
-                            ></i>
-                            Hora</div
-                        >
-                        <div style="font-weight: 500" data-field="hora"></div>
-                    </div>
-
-                    <hr
-                        style="border: 0; border-top: 1px solid var(--border-color); margin: 20px 0"
-                    />
-
-                    <p
-                        data-field="duracion"
-                        style="font-size: 13px; color: var(--text-muted); margin: 14px 0"
-                    ></p
-                    ><div style="display: flex; gap: 12px" data-field="acciones"></div>
+                <div class="sess-foot">
+                    <span class="dur-chip"
+                        ><i class="fa-regular fa-clock"></i>
+                        <span data-field="duracion"></span
+                    ></span>
+                    <div class="sess-actions" data-field="acciones"></div>
                 </div>
             </div> </template
         ><template id="podium-card-2"
