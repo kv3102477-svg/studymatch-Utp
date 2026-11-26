@@ -571,7 +571,7 @@ function profile() {
     setText("card-nombre", u.nombre);
     setText("card-carrera", u.carrera);
     setText("card-ciclo", u.ciclo);
-    setText("dash-greeting", `Bienvenido de nuevo, ${u.nombre.split(" ")[0]}`);
+    setText("dash-greeting", `Hola de nuevo, ${u.nombre.split(" ")[0]}`);
     for (const id of ["sidebar-avatar", "card-avatar", "form-avatar", "topbar-user-avatar"]) {
         const e = $(id);
         if (!e) continue;
@@ -1013,13 +1013,18 @@ async function loadSessions() {
     const next = sessions
         .filter((s) => ["CONFIRMADA", "PROPUESTA", "EN_CURSO"].includes(s.estado) && !isExpiredSession(s))
         .sort((a, b) => new Date(a.fecha_hora) - new Date(b.fecha_hora))[0];
-    setText("dashboard-next-subject", next ? next.materia : "Sin próximas sesiones");
+    setText("dashboard-next-subject", next ? next.materia : "Todavía no tienes sesiones");
     setText(
         "dashboard-next-detail",
         next
             ? `${dateText(next.fecha_hora)} · con ${next.companero}`
-            : "Propón una sesión para empezar.",
+            : "Cuando agendes tu primera asesoría, aparecerá aquí.",
     );
+    const nextActionBtn = $("dashboard-next-action");
+    if (nextActionBtn) {
+        nextActionBtn.textContent = next ? "Ver detalles" : "Buscar un mentor";
+        nextActionBtn.setAttribute("data-go", next ? "mis-sesiones-section" : "buscar-section");
+    }
     const weekStart = new Date();
     weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
     weekStart.setHours(0, 0, 0, 0);
