@@ -1883,6 +1883,188 @@ textarea.form-input-error {
 }
 
 /* Móviles Android / iPhone y tablets verticales (<= 820px) */
+
+/* Mis Sesiones v9: botón Refrescar compacto, pestañas tipo pastilla, tarjetas ordenadas */
+#mis-sesiones-section .sess-head-new {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+#mis-sesiones-section .sess-head-new p {
+    margin-bottom: 0;
+}
+#btn-rf027-refresh.refresh-round {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #f7e9ed;
+    border: 1.5px solid #e8c5ce;
+    color: #7a1735;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-top: 2px;
+    padding: 0;
+    font-size: 18px;
+}
+#btn-rf027-refresh.refresh-round:hover {
+    background: #fbeef1;
+}
+#mis-sesiones-section .tabs-pills {
+    display: flex;
+    gap: 6px;
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 6px;
+    margin-bottom: 16px;
+}
+#mis-sesiones-section .tab-pill {
+    flex: 1;
+    text-align: center;
+    padding: 10px 8px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+}
+#mis-sesiones-section .tab-pill.active {
+    background: #f7e9ed;
+    color: #7a1735;
+    font-weight: 700;
+}
+#mis-sesiones-section .sess-empty {
+    text-align: center;
+    padding: 32px 16px;
+}
+#mis-sesiones-section .sess-empty .empty-ico {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #f7e9ed;
+    color: #7a1735;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+}
+#mis-sesiones-section .sess-empty h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 12px 0 4px;
+}
+#mis-sesiones-section .sess-empty p {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+#mis-sesiones-section .sess-empty .btn {
+    margin-top: 14px;
+    padding: 11px 18px;
+    border-radius: 10px;
+}
+#historial-container .sess-card {
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+}
+#historial-container .sess-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+}
+#historial-container .sess-card-top h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+}
+#historial-container .sess-badge {
+    background: #dcfce7;
+    color: #15803d;
+    padding: 5px 11px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+#historial-container .sess-sub {
+    font-size: 13.5px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+#historial-container .sess-hr {
+    border: 0;
+    border-top: 1px solid var(--border-color);
+    margin: 14px 0;
+}
+#historial-container .sess-grid {
+    display: grid;
+    grid-template-columns: 118px 1fr;
+    row-gap: 10px;
+    font-size: 14px;
+}
+#historial-container .sess-lbl {
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+}
+#historial-container .sess-lbl i {
+    width: 16px;
+    text-align: center;
+    flex-shrink: 0;
+}
+#historial-container .sess-val {
+    font-weight: 500;
+    color: #0f172a;
+}
+#historial-container .sess-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+#historial-container .dur-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 999px;
+}
+#historial-container .dur-chip i {
+    font-size: 13px;
+}
+#historial-container .sess-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+#historial-container .sess-actions:empty {
+    display: none;
+}
+.btn-mini {
+    padding: 8px 13px;
+    font-size: 12.5px;
+    font-weight: 700;
+    border-radius: 9px;
+}
+
 @media (max-width: 820px) {
     .mobile-menu-toggle {
         display: inline-flex;
@@ -1986,39 +2168,26 @@ textarea.form-input-error {
         min-width: 0;
     }
 
-    /* Mis Sesiones: encabezado, botón Refrescar, tarjetas y botones */
-    #mis-sesiones-section > div:first-child,
-    #mis-sesiones-section .section-header,
-    #mis-sesiones-section .page-header {
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: stretch !important;
-        gap: 12px !important;
-        width: 100% !important;
-    }
-
-    #btn-rf027-refresh {
-        width: 100% !important;
-        justify-content: center !important;
-    }
+    /* Mis Sesiones v9: el encabezado ya no se apila en móvil; el botón
+       Refrescar es un círculo compacto de 40px en todos los anchos. */
 
     #historial-container {
         display: flex !important;
         flex-direction: column !important;
         width: 100% !important;
         max-width: 100% !important;
-        gap: 16px !important;
+        gap: 12px !important;
     }
 
-    #historial-container > * {
+    #historial-container > .sess-card {
         width: 100% !important;
         max-width: 100% !important;
         min-width: 0 !important;
-        padding: 16px !important;
+        padding: 20px !important;
         box-sizing: border-box !important;
     }
 
-    #historial-container > * > div:first-child {
+    #historial-container > .sess-card > div:first-child {
         flex-wrap: wrap !important;
         gap: 8px !important;
     }
@@ -2029,23 +2198,6 @@ textarea.form-input-error {
     #historial-container [data-field="duracion"] {
         white-space: normal !important;
         overflow-wrap: anywhere !important;
-    }
-
-    #historial-container [data-field="acciones"] {
-        display: grid !important;
-        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-        gap: 8px !important;
-        width: 100% !important;
-    }
-
-    #historial-container [data-field="acciones"] .btn {
-        width: 100% !important;
-        min-width: 0 !important;
-        padding: 10px 8px !important;
-        font-size: 12.5px !important;
-        justify-content: center !important;
-        text-align: center !important;
-        white-space: normal !important;
     }
 
     /* Panel / Popover de Notificaciones encuadrado dentro del ancho visible */
