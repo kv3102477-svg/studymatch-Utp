@@ -571,6 +571,9 @@ function profile() {
     setText("card-nombre", u.nombre);
     setText("card-carrera", u.carrera);
     setText("card-ciclo", u.ciclo);
+    setText("summary-nombre", u.nombre);
+    setText("summary-carrera", u.carrera);
+    setText("summary-ciclo", u.ciclo);
     setText("dash-greeting", `Hola de nuevo, ${u.nombre.split(" ")[0]}`);
     for (const id of ["sidebar-avatar", "card-avatar", "form-avatar", "topbar-user-avatar"]) {
         const e = $(id);
@@ -1185,6 +1188,30 @@ async function loadBadges() {
 }
 // La presentación y búsqueda de compañeros se enlazan en design.js.
 let loadSearch, studentCard;
+function mergeHorarioRanges(horario) {
+    // Agrupa las franjas horarias por día y fusiona las horas consecutivas
+    // en rangos ("Mar 11:00–18:00"), mismo patrón de fusión que commonAvailability().
+    const days = ["", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+    const minutes = (value) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5));
+    const byDay = new Map();
+    for (const h of horario) {
+        const day = Number(h.dia_semana);
+        if (!byDay.has(day)) byDay.set(day, []);
+        byDay.get(day).push([minutes(h.hora_inicio), minutes(h.hora_fin)]);
+    }
+    const parts = [];
+    for (const day of [...byDay.keys()].sort((a, b) => a - b)) {
+        const merged = [];
+        for (const row of byDay.get(day).sort((a, b) => a[0] - b[0])) {
+            const last = merged.at(-1);
+            if (last && row[0] <= last[1]) last[1] = Math.max(last[1], row[1]);
+            else merged.push([...row]);
+        }
+        for (const [start, end] of merged)
+            parts.push(`${days[day]} ${formatMinutes24h(start)}–${formatMinutes24h(end)}`);
+    }
+    return parts.join(" · ");
+}
 async function otherProfile(id) {
     const [result, mine] = await Promise.all([api("/estudiantes/" + id), api("/perfil/materias")]);
     selectedStudent = result.perfil;
@@ -1221,7 +1248,7 @@ async function otherProfile(id) {
             ? subjects
                   .map(
                       (m) =>
-                          `<span class="tag ${role === "ENSENAR" ? "tag-purple" : "tag-green"}">${escapeHtml(m.nombre)} <span class="level">${escapeHtml(m.nivel.toLowerCase())}</span></span>`,
+                          `<span class="tag ${role === "ENSENAR" ? "tag-purple" : "tag-green"}"><b>${escapeHtml(m.nombre)}</b> <span class="level">${escapeHtml(m.nivel.toLowerCase())}</span></span>`,
                   )
                   .join("")
             : empty("Sin materias registradas.");
@@ -1241,16 +1268,11 @@ async function otherProfile(id) {
     show("modal-comp-actions-self", self, "flex");
     show("modal-comp-report-footer", !self);
     show("modal-comp-preview-badge", self, "inline-flex");
+    show("modal-comp-bio-hint", self && !selectedStudent.bio);
     setText(
         "modal-comp-disponibilidad",
         result.horario.length
-            ? "Disponibilidad: " +
-                  result.horario
-                      .map(
-                          (h) =>
-                              `${["", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"][h.dia_semana]} ${h.hora_inicio.slice(0, 5)}–${h.hora_fin.slice(0, 5)}`,
-                      )
-                      .join(" · ")
+            ? "Disponibilidad: " + mergeHorarioRanges(result.horario)
             : "Sin disponibilidad registrada.",
     );
     show("modal-companero-perfil", true, "flex");
