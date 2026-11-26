@@ -1805,7 +1805,7 @@ textarea.form-input-error {
 }
 
 #modal-comp-avatar {
-    background-color: #9f1239 !important;
+    background-color: #7a1735 !important;
     color: #ffffff !important;
 }
 
@@ -2507,4 +2507,152 @@ textarea.form-input-error {
     background-color: #ffffff !important;
     color: #065f46 !important;
     border-color: #a7f3d0 !important;
+}
+
+/* ==================== v7: PERFIL — TARJETA RESUMEN Y PESTAÑAS ==================== */
+.mode-pill { background: #f7e9ed; color: #7a1735; border: 1px solid #e8c5ce; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
+.mini-stat { background: #f8fafc; border: 1px solid #e2e8f0; color: #475569; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
+.btn-preview-mini { background: #ffffff !important; color: #0f172a !important; border: 1.5px solid #cbd5e1 !important; border-radius: 12px !important; font-weight: 700 !important; font-size: 12px !important; padding: 8px 14px !important; box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important; }
+#perfil-main-tabs .tab { flex-shrink: 0; }
+/* Sub-pestañas del perfil: sin override v7 — en móvil (≤820px) manda la cuadrícula de 2 columnas de la regla base, y en escritorio la fila flexible por defecto. */
+
+/* ==================== v7: MODAL DE PERFIL — FICHAS Y PIE DE REPORTE ==================== */
+#modal-comp-teach-list .tag,
+#modal-comp-learn-list .tag {
+    padding: 8px 12px !important;
+    font-size: 13.5px !important;
+    border-radius: 10px !important;
+}
+#modal-comp-teach-list .tag .level {
+    color: #7a1735 !important;
+    background-color: #f7e9ed !important;
+    border-radius: 20px !important;
+    padding: 3px 8px !important;
+}
+#modal-comp-learn-list .tag .level {
+    color: #16a34a !important;
+    background-color: #dcfce7 !important;
+    border-radius: 20px !important;
+    padding: 3px 8px !important;
+}
+#modal-companero-perfil #modal-comp-bio-hint {
+    color: #7a1735 !important;
+}
+#modal-comp-report-footer {
+    background: #f8fafc !important;
+    border: 1px dashed #cbd5e1 !important;
+    padding: 10px 14px !important;
+}
+#modal-comp-report-footer > div > div:first-child {
+    background: #f1f5f9 !important;
+    color: #64748b !important;
+}
+#modal-comp-report-footer > div > div:last-child > div:first-child {
+    color: #475569 !important;
+}
+#modal-comp-report-footer #btn-reportar-companero {
+    padding: 7px 12px !important;
+    font-size: 12px !important;
+}
+
+/* ==================== v7: MODO OSCURO EXPLÍCITO SOLO PARA EL MODAL DE PERFIL ==================== */
+/* Sigue la preferencia del sistema/navegador; el resto de la app se queda en claro. */
+@media (prefers-color-scheme: dark) {
+    #modal-companero-perfil,
+    #modal-companero-perfil > div {
+        color-scheme: dark !important;
+        color: #f1f5f9 !important;
+    }
+    #modal-companero-perfil > div {
+        background: #1f2937 !important;
+        border-color: #374151 !important;
+    }
+    #modal-companero-perfil p,
+    #modal-companero-perfil span:not(.badge):not(.pro-badge):not(.tag):not(.tag *) {
+        color: #e2e8f0 !important;
+    }
+    #modal-companero-perfil h2 {
+        color: #f1f5f9 !important;
+    }
+    #modal-companero-perfil .pm-label {
+        background: #3b1f2b !important;
+        border-color: #7a1735 !important;
+    }
+    #modal-companero-perfil .pm-user {
+        background: #111827 !important;
+        border-color: #374151 !important;
+    }
+    #modal-companero-perfil .pm-bio {
+        background: #111827 !important;
+        border-color: #374151 !important;
+    }
+    #modal-companero-perfil #modal-comp-bio-hint {
+        color: #f9a8d4 !important;
+    }
+    #modal-companero-perfil .pm-teach {
+        background: #2a1620 !important;
+        border-color: #4a2436 !important;
+        border-left-color: #7a1735 !important;
+    }
+    #modal-companero-perfil .pm-teach-title {
+        color: #fbcfe8 !important;
+    }
+    #modal-companero-perfil .pm-role-mentor {
+        background: #7a1735 !important;
+    }
+    #modal-companero-perfil .pm-learn {
+        background: #0f2e1e !important;
+        border-color: #14532d !important;
+        border-left-color: #16a34a !important;
+    }
+    #modal-companero-perfil .pm-learn-title {
+        color: #86efac !important;
+    }
+    #modal-companero-perfil .pm-role-aprendiz {
+        background: #16a34a !important;
+    }
+    #modal-comp-teach-list .tag,
+    #modal-comp-teach-list .tag-purple {
+        background-color: #3b1f2b !important;
+        color: #fda4af !important;
+        border-color: #7a1735 !important;
+    }
+    #modal-comp-teach-list .tag .level {
+        color: #ffffff !important;
+        background-color: #7a1735 !important;
+    }
+    #modal-comp-learn-list .tag,
+    #modal-comp-learn-list .tag-green {
+        background-color: #14532d !important;
+        color: #86efac !important;
+        border-color: #16a34a !important;
+    }
+    #modal-comp-learn-list .tag .level {
+        color: #ffffff !important;
+        background-color: #16a34a !important;
+    }
+    #modal-companero-perfil .pm-avail {
+        background: #111827 !important;
+        border-color: #374151 !important;
+        color: #cbd5e1 !important;
+    }
+    #modal-companero-perfil .pm-report {
+        background: #111827 !important;
+        border-color: #374151 !important;
+        color: #94a3b8 !important;
+    }
+    #modal-comp-report-footer > div > div:first-child {
+        background: #1f2937 !important;
+        color: #94a3b8 !important;
+    }
+    #modal-comp-report-footer > div > div:last-child > div:first-child {
+        color: #e2e8f0 !important;
+    }
+    #modal-comp-report-footer > div > div:last-child > div:last-child {
+        color: #94a3b8 !important;
+    }
+    #modal-companero-perfil .btn-secondary {
+        background: #4b5563 !important;
+        color: #ffffff !important;
+    }
 }
