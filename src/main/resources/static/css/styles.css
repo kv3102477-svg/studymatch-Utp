@@ -1,12 +1,12 @@
 :root {
-    --primary: #b60d30; /* UTP Rojo Carmesí Oscuro Oficial */
-    --primary-hover: #900a26;
+    --primary: #7a1735; /* UTP Rojo Carmesí Oscuro Oficial */
+    --primary-hover: #5f1028;
     --primary-dark: #7f1d1d;
-    --primary-light: #fef2f2; /* Fondo suave institucional */
+    --primary-light: #f7e9ed; /* Fondo suave institucional */
     --secondary: #111827; /* UTP Negro Obsidiana / Carbón */
     --secondary-light: #f3f4f6;
-    --utp-red: #b60d30;
-    --utp-red-hover: #900a26;
+    --utp-red: #7a1735;
+    --utp-red-hover: #5f1028;
     --utp-black: #000000;
     --utp-dark: #111827;
     --utp-white: #ffffff;
@@ -715,7 +715,7 @@ h4 {
     padding: 10px;
     background: var(--primary-light);
     color: var(--primary);
-    border: 1px solid #fecaca;
+    border: 1px solid #e8c5ce;
     border-radius: 8px;
     font-weight: 700;
     font-size: 13px;
@@ -811,7 +811,7 @@ h4 {
     background-color: var(--primary-light);
     color: var(--primary);
     font-weight: 700;
-    border: 1px solid #fecaca;
+    border: 1px solid #e8c5ce;
 }
 .tab-content {
     display: none;
@@ -939,7 +939,7 @@ select:focus,
     transition: color 0.2s ease;
 }
 .btn-toggle-datalist:hover {
-    color: #b60d30 !important;
+    color: #7a1735 !important;
 }
 
 /* Tags */
@@ -975,8 +975,8 @@ select:focus,
 }
 .tag-purple {
     background-color: var(--primary-light);
-    color: #991b1b;
-    border: 1px solid #fecaca;
+    color: #5f1028;
+    border: 1px solid #e8c5ce;
 }
 .tag-purple .level {
     color: var(--primary);
@@ -1054,7 +1054,7 @@ select:focus,
 }
 .chat-conv-item.active {
     background-color: var(--primary-light) !important;
-    border-color: #fecaca !important;
+    border-color: #e8c5ce !important;
 }
 .chat-mobile-back-btn {
     display: none;
@@ -1188,8 +1188,8 @@ select:focus,
 
 /* ==================== RF-0049: CERTIFICADOS Y LOGROS STYLING ==================== */
 .rf49-banner-felicitacion {
-    background: linear-gradient(135deg, #fef2f2 0%, #fff1f2 100%);
-    border: 1.5px solid #fecaca;
+    background: linear-gradient(135deg, #f7e9ed 0%, #fdf2f4 100%);
+    border: 1.5px solid #e8c5ce;
     border-radius: 16px;
     padding: 20px 24px;
     margin-bottom: 24px;
@@ -1293,8 +1293,8 @@ textarea.form-input-error {
 .form-error-alert {
     display: none !important;
     padding: 12px 14px;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
+    background: #f7e9ed;
+    border: 1px solid #e8c5ce;
     border-left: 4px solid #ef4444;
     color: #b91c1c;
     border-radius: 10px;
@@ -1417,13 +1417,13 @@ textarea.form-input-error {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    background: #fef2f2;
-    border: 1.5px solid #fecaca;
+    background: #f7e9ed;
+    border: 1.5px solid #e8c5ce;
     border-radius: 20px;
     padding: 5px 14px;
     font-size: 12.5px;
     font-weight: 700;
-    color: #991b1b;
+    color: #5f1028;
     letter-spacing: 0.2px;
 }
 
@@ -1459,8 +1459,8 @@ textarea.form-input-error {
 }
 
 .topbar-role-toggle.mentor-active {
-    background: #b60d30 !important;
-    border-color: #991b1b !important;
+    background: #7a1735 !important;
+    border-color: #5f1028 !important;
     color: #ffffff !important;
 }
 
@@ -1854,7 +1854,7 @@ textarea.form-input-error {
 .mobile-menu-toggle:hover {
     background-color: var(--primary-light);
     color: var(--primary);
-    border-color: #fecaca;
+    border-color: #e8c5ce;
 }
 
 /* Tablets y laptops compactas (<= 1024px) */
